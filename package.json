@@ -1,0 +1,36 @@
+{
+  "name": "bookmark-manager-chrome",
+  "version": "1.0.0",
+  "description": "A powerful Chrome bookmark manager extension with tag system, search, and visit tracking",
+  "author": "shdwaker",
+  "license": "MIT",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/shdwaker/bookmark-chrome.git"
+  },
+  "keywords": [
+    "chrome-extension",
+    "bookmark",
+    "bookmark-manager",
+    "vue3",
+    "vite"
+  ],
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "pinia": "^2.1.7",
+    "vue": "^3.4.21"
+  },
+  "devDependencies": {
+    "@crxjs/vite-plugin": "^2.0.0-beta.25",
+    "@vitejs/plugin-vue": "^5.0.4",
+    "vite": "^5.2.0"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}

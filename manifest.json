@@ -1,0 +1,29 @@
+{
+  "manifest_version": 3,
+  "name": "书签管理器",
+  "version": "1.0.0",
+  "description": "功能强大的Chrome书签管理插件，支持书签同步、访问记录追踪等功能",
+  "permissions": [
+    "bookmarks",
+    "storage",
+    "tabs",
+    "history",
+    "alarms"
+  ],
+  "background": {
+    "service_worker": "src/background/index.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "打开书签管理器"
+  },
+  "chrome_url_overrides": {
+    "newtab": "src/pages/main/index.html"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["src/pages/main/index.html", "src/pages/settings/index.html"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}
