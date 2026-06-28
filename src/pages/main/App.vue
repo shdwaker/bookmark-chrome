@@ -50,14 +50,10 @@
       @close="showTrace = false"
     />
 
-    <div v-if="showAllTabs" class="modal-overlay" @click.self="showAllTabs = false">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h3>全部页签</h3>
-          <button class="modal-close" @click="showAllTabs = false">×</button>
-        </div>
-      </div>
-    </div>
+    <AllTabsModal
+      v-if="showAllTabs"
+      @close="showAllTabs = false"
+    />
 
     <!-- 确认弹窗 -->
     <ConfirmModal
@@ -81,6 +77,7 @@ import BookmarkEditModal from './components/BookmarkEditModal.vue'
 import FolderEditModal from './components/FolderEditModal.vue'
 import TraceModal from './components/TraceModal.vue'
 import ConfirmModal from './components/ConfirmModal.vue'
+import AllTabsModal from './components/AllTabsModal.vue'
 
 const bookmarkStore = useBookmarkStore()
 const settingsStore = useSettingsStore()
