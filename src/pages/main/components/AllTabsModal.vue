@@ -92,7 +92,7 @@
                     <span class="detail-tab-status">
                       {{ tab.isNewest ? '保留' : '将清除' }}
                     </span>
-                    <span class="detail-tab-title">{{ tab.title }}</span>
+                    <span class="detail-tab-url">{{ tab.url || '无地址' }}</span>
                   </div>
                 </div>
               </div>
@@ -478,7 +478,7 @@ onUnmounted(() => {
   flex-shrink: 0;
 }
 
-.detail-tab-title {
+.detail-tab-url {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
