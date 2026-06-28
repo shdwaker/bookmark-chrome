@@ -27,3 +27,4 @@ npm-debug.log*
 *.tmp
 *.temp
 .superpowers/
+.worktrees/
