@@ -7,6 +7,7 @@
       @select-root-folder="handleSelectRootFolder"
       @open-trace="handleOpenTrace"
       @open-settings="handleOpenSettings"
+      @open-all-tabs="handleOpenAllTabs"
     />
     <div class="main-content">
       <FolderTree
@@ -49,6 +50,15 @@
       @close="showTrace = false"
     />
 
+    <div v-if="showAllTabs" class="modal-overlay" @click.self="showAllTabs = false">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>全部页签</h3>
+          <button class="modal-close" @click="showAllTabs = false">×</button>
+        </div>
+      </div>
+    </div>
+
     <!-- 确认弹窗 -->
     <ConfirmModal
       v-if="showConfirm"
@@ -82,6 +92,7 @@ const showTrace = ref(false)
 const traceMode = ref('url')
 const editingBookmark = ref(null)
 const editingFolder = ref(null)
+const showAllTabs = ref(false)
 
 // 确认弹窗状态
 const showConfirm = ref(false)
@@ -226,6 +237,11 @@ function handleOpenTrace(mode) {
 // 处理打开设置
 function handleOpenSettings() {
   chrome.tabs.create({ url: chrome.runtime.getURL('src/pages/settings/index.html') })
+}
+
+// 处理打开全部页签
+function handleOpenAllTabs() {
+  showAllTabs.value = true
 }
 </script>
 

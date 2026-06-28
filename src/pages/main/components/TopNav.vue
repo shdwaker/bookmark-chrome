@@ -93,6 +93,14 @@
         </svg>
         网址留痕
       </button>
+      <button class="nav-action-btn" @click="$emit('open-all-tabs')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="4" width="18" height="14" rx="2"/>
+          <line x1="7" y1="20" x2="17" y2="20"/>
+          <line x1="12" y1="18" x2="12" y2="20"/>
+        </svg>
+        全部页签
+      </button>
       <button class="nav-action-btn" @click="$emit('open-settings')">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <circle cx="12" cy="12" r="3"/>
@@ -125,7 +133,7 @@ const props = defineProps({
   }
 })
 
-defineEmits(['select-root-folder', 'open-trace', 'open-settings'])
+defineEmits(['select-root-folder', 'open-trace', 'open-settings', 'open-all-tabs'])
 
 const bookmarkStore = useBookmarkStore()
 
