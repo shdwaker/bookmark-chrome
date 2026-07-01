@@ -1,7 +1,6 @@
 <template>
-  <div class="modal-overlay" @click.self="$emit('close')">
-    <div class="modal-content all-tabs-modal">
-      <div class="modal-header all-tabs-modal-header">
+  <div class="all-tabs-panel">
+      <div class="all-tabs-panel-header">
         <div class="header-left">
           <h3>全部页签</h3>
           <div v-if="viewData" class="stats-info">
@@ -24,12 +23,6 @@
             @click="showBulkConfirm = true"
           >
             清除重复
-          </button>
-          <button class="modal-close" @click="$emit('close')">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <line x1="18" y1="6" x2="6" y2="18"/>
-              <line x1="6" y1="6" x2="18" y2="18"/>
-            </svg>
           </button>
         </div>
       </div>
@@ -134,14 +127,11 @@
         </button>
       </div>
     </div>
-  </div>
 </template>
 
 <script setup>
 import { computed, ref, onMounted } from 'vue'
 import { queryAllTabs, buildAllTabsView, focusTab, closeTabs } from '@/utils/tabs-manager'
-
-defineEmits(['close'])
 
 const VISIBLE_LIMIT = 8
 
@@ -317,7 +307,7 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.all-tabs-modal {
+.all-tabs-panel {
   --paper: #f8f5f0;
   --ink: #1a1613;
   --warm-gray: #e8e2da;
@@ -327,27 +317,23 @@ onMounted(() => {
   --card-bg: #fffdf9;
   --shadow: rgba(26, 22, 19, 0.06);
 
-  width: 90%;
-  max-width: 1000px;
-  height: min(85vh, calc(100vh - 48px));
-  max-height: 85vh;
+  flex: 1;
   display: flex;
   flex-direction: column;
-  position: relative;
   overflow: hidden;
   background: var(--paper);
 }
 
-.all-tabs-modal :deep(.modal-header) {
-  flex: 0 0 auto;
-}
-
-.all-tabs-modal-header {
+.all-tabs-panel-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
+  padding: 12px 20px;
+  background: white;
+  border-bottom: 1px solid var(--warm-gray);
+  flex-shrink: 0;
 }
 
 .header-left {

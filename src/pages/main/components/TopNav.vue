@@ -93,7 +93,10 @@
         </svg>
         网址留痕
       </button>
-      <button class="nav-action-btn" @click="$emit('open-all-tabs')">
+      <button
+        :class="['nav-action-btn', { active: activeView === 'all-tabs' }]"
+        @click="$emit('open-all-tabs')"
+      >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <rect x="3" y="4" width="18" height="14" rx="2"/>
           <line x1="7" y1="20" x2="17" y2="20"/>
@@ -130,6 +133,10 @@ const props = defineProps({
   selectedRootId: {
     type: String,
     default: ''
+  },
+  activeView: {
+    type: String,
+    default: 'bookmarks'
   }
 })
 

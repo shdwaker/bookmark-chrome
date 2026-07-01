@@ -4,29 +4,33 @@
       :root-folders="rootFolders"
       :favorite-folders="favoriteFolders"
       :selected-root-id="currentRootFolderId"
+      :active-view="activeView"
       @select-root-folder="handleSelectRootFolder"
       @open-trace="handleOpenTrace"
       @open-settings="handleOpenSettings"
       @open-all-tabs="handleOpenAllTabs"
     />
     <div class="main-content">
-      <FolderTree
-        :folders="currentFolderTree"
-        :selected-folder-id="currentFolderId"
-        @select-folder="handleSelectFolder"
-        @add-folder="handleAddFolder"
-        @edit-folder="handleEditFolder"
-        @delete-folder="handleDeleteFolder"
-        @toggle-favorite="handleToggleFavorite"
-        :favorite-ids="favoriteFolderIds"
-      />
-      <BookmarkList
-        :bookmarks="currentBookmarks"
-        :current-folder="currentFolder"
-        @add-bookmark="handleAddBookmark"
-        @edit-bookmark="handleEditBookmark"
-        @delete-bookmark="handleDeleteBookmark"
-      />
+      <AllTabsPanel v-if="activeView === 'all-tabs'" />
+      <template v-else>
+        <FolderTree
+          :folders="currentFolderTree"
+          :selected-folder-id="currentFolderId"
+          @select-folder="handleSelectFolder"
+          @add-folder="handleAddFolder"
+          @edit-folder="handleEditFolder"
+          @delete-folder="handleDeleteFolder"
+          @toggle-favorite="handleToggleFavorite"
+          :favorite-ids="favoriteFolderIds"
+        />
+        <BookmarkList
+          :bookmarks="currentBookmarks"
+          :current-folder="currentFolder"
+          @add-bookmark="handleAddBookmark"
+          @edit-bookmark="handleEditBookmark"
+          @delete-bookmark="handleDeleteBookmark"
+        />
+      </template>
     </div>
 
     <!-- 编辑弹窗 -->
@@ -48,11 +52,6 @@
       v-if="showTrace"
       :mode="traceMode"
       @close="showTrace = false"
-    />
-
-    <AllTabsModal
-      v-if="showAllTabs"
-      @close="showAllTabs = false"
     />
 
     <!-- 确认弹窗 -->
@@ -77,7 +76,7 @@ import BookmarkEditModal from './components/BookmarkEditModal.vue'
 import FolderEditModal from './components/FolderEditModal.vue'
 import TraceModal from './components/TraceModal.vue'
 import ConfirmModal from './components/ConfirmModal.vue'
-import AllTabsModal from './components/AllTabsModal.vue'
+import AllTabsPanel from './components/AllTabsModal.vue'
 
 const bookmarkStore = useBookmarkStore()
 const settingsStore = useSettingsStore()
@@ -89,7 +88,7 @@ const showTrace = ref(false)
 const traceMode = ref('url')
 const editingBookmark = ref(null)
 const editingFolder = ref(null)
-const showAllTabs = ref(false)
+const activeView = ref('all-tabs')
 
 // 确认弹窗状态
 const showConfirm = ref(false)
@@ -127,6 +126,7 @@ onMounted(async () => {
 // 处理根文件夹选择（顶部导航）
 function handleSelectRootFolder(folderId) {
   bookmarkStore.setRootFolder(folderId)
+  activeView.value = 'bookmarks'
 }
 
 // 处理子文件夹选择（左侧树）- 只改变当前选中文件夹，不刷新整个树
@@ -236,9 +236,9 @@ function handleOpenSettings() {
   chrome.tabs.create({ url: chrome.runtime.getURL('src/pages/settings/index.html') })
 }
 
-// 处理打开全部页签
+// 处理打开全部页签（切换视图）
 function handleOpenAllTabs() {
-  showAllTabs.value = true
+  activeView.value = activeView.value === 'all-tabs' ? 'bookmarks' : 'all-tabs'
 }
 </script>
 
