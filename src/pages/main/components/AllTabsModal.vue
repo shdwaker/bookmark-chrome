@@ -1,14 +1,37 @@
 <template>
   <div class="modal-overlay" @click.self="$emit('close')">
     <div class="modal-content all-tabs-modal">
-      <div class="modal-header">
-        <h3>全部页签</h3>
-        <button class="modal-close" @click="$emit('close')">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <line x1="18" y1="6" x2="6" y2="18"/>
-            <line x1="6" y1="6" x2="18" y2="18"/>
-          </svg>
-        </button>
+      <div class="modal-header all-tabs-modal-header">
+        <div class="header-left">
+          <h3>全部页签</h3>
+          <div v-if="viewData" class="stats-info">
+            <span class="stat-item">
+              全部: <strong>{{ viewData.stats.totalTabs }}</strong>
+            </span>
+            <span class="stat-item">
+              不同: <strong>{{ viewData.stats.totalRecords }}</strong>
+            </span>
+            <span class="stat-item">
+              重复: <strong :class="{ 'duplicate-count': viewData.stats.duplicateRecords > 0 }">{{ viewData.stats.duplicateRecords }}</strong>
+            </span>
+          </div>
+        </div>
+        <div class="header-right">
+          <button
+            v-if="viewData"
+            class="btn btn-primary clear-duplicates-btn"
+            :disabled="viewData.stats.duplicateRecords === 0 || clearing"
+            @click="showBulkConfirm = true"
+          >
+            清除重复
+          </button>
+          <button class="modal-close" @click="$emit('close')">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"/>
+              <line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
       </div>
 
       <div v-if="loading" class="empty-state">
@@ -20,33 +43,8 @@
       </div>
 
       <div v-else class="content-wrapper">
-        <div class="all-tabs-header">
-          <div class="stats-info">
-            <span class="stat-item">
-              全部页签: <strong>{{ viewData.stats.totalTabs }}</strong>
-            </span>
-            <span class="stat-item">
-              不同页面: <strong>{{ viewData.stats.totalRecords }}</strong>
-            </span>
-            <span class="stat-item" v-if="viewData.stats.duplicateRecords > 0">
-              重复页签: <strong class="duplicate-count">{{ viewData.stats.duplicateRecords }}</strong>
-            </span>
-          </div>
-          <button
-            class="btn btn-primary clear-duplicates-btn"
-            :disabled="viewData.stats.duplicateRecords === 0 || clearing"
-            @click="showBulkConfirm = true"
-          >
-            清除重复
-          </button>
-        </div>
-
         <div v-if="actionError" class="action-error">
           {{ actionError }}
-        </div>
-
-        <div v-if="viewData.stats.duplicateRecords === 0" class="no-duplicates-hint">
-          暂无重复页签
         </div>
 
         <div class="domain-grid">
@@ -344,33 +342,32 @@ onMounted(() => {
   flex: 0 0 auto;
 }
 
-.content-wrapper {
-  display: flex;
-  flex-direction: column;
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow: hidden;
-}
-
-/* ---- Top stats bar ---- */
-.all-tabs-header {
+.all-tabs-modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 16px;
-  background: var(--card-bg);
-  border: 1px solid var(--warm-gray);
-  border-radius: 8px;
-  margin-bottom: 16px;
-  flex-wrap: wrap;
   gap: 12px;
+  flex-wrap: wrap;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   flex-shrink: 0;
 }
 
 .stats-info {
   display: flex;
-  gap: 16px;
-  font-size: 13px;
+  gap: 14px;
+  font-size: 12px;
   color: var(--muted);
 }
 
@@ -384,8 +381,8 @@ onMounted(() => {
 }
 
 .clear-duplicates-btn {
-  padding: 8px 16px;
-  font-size: 13px;
+  padding: 5px 12px;
+  font-size: 12px;
 }
 
 .clear-duplicates-btn:disabled {
@@ -393,7 +390,15 @@ onMounted(() => {
   cursor: not-allowed;
 }
 
-/* ---- Error / hint states ---- */
+.content-wrapper {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* ---- Error state ---- */
 .action-error {
   padding: 10px 12px;
   margin-bottom: 12px;
@@ -402,15 +407,6 @@ onMounted(() => {
   border: 1px solid rgba(179, 90, 90, 0.15);
   color: var(--status-abandoned);
   font-size: 13px;
-  flex-shrink: 0;
-}
-
-.no-duplicates-hint {
-  text-align: center;
-  padding: 24px;
-  color: var(--muted);
-  font-size: 14px;
-  font-style: italic;
   flex-shrink: 0;
 }
 
