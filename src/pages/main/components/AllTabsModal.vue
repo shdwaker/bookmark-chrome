@@ -1,6 +1,6 @@
 <template>
   <div class="modal-overlay" @click.self="$emit('close')">
-    <div class="modal-content all-tabs-modal" ref="modalRef">
+    <div class="modal-content all-tabs-modal">
       <div class="modal-header">
         <h3>全部页签</h3>
         <button class="modal-close" @click="$emit('close')">
@@ -34,11 +34,15 @@
           </div>
           <button
             class="btn btn-primary clear-duplicates-btn"
-            :disabled="viewData.stats.duplicateRecords === 0"
+            :disabled="viewData.stats.duplicateRecords === 0 || clearing"
             @click="showBulkConfirm = true"
           >
             清除重复
           </button>
+        </div>
+
+        <div v-if="actionError" class="action-error">
+          {{ actionError }}
         </div>
 
         <div v-if="viewData.stats.duplicateRecords === 0" class="no-duplicates-hint">
@@ -46,54 +50,75 @@
         </div>
 
         <div class="domain-grid">
-          <div v-for="group in viewData.groups" :key="group.name" class="domain-card">
-            <div class="domain-card-header">
-              <span class="domain-name">{{ group.name }}</span>
-              <span class="domain-count">{{ group.tabCount }} 页</span>
-            </div>
-            <div class="record-list">
-              <div
-                v-for="record in group.records"
-                :key="record.key"
-                class="record-item"
-                :class="{ duplicate: record.isDuplicate }"
-                :ref="el => setRecordRef(record.key, el)"
-                @mouseenter="(e) => showPopover(record, e)"
-                @mouseleave="hidePopover(record)"
-              >
-                <div class="record-body" @click="handleFocusTab(record.newestTab)">
-                  <div class="record-title">{{ record.title }}</div>
-                  <div class="record-url">{{ record.displayUrl }}</div>
+          <div v-for="(column, columnIndex) in domainColumns" :key="columnIndex" class="domain-column">
+            <div
+              v-for="group in column"
+              :key="group.name"
+              class="domain-card"
+              :class="{ 'has-dupes': group.hasDuplicates }"
+            >
+              <div class="domain-card-header">
+                <div class="domain-card-title">
+                  <span class="domain-name">{{ group.name }}</span>
+                  <span class="domain-count">{{ group.tabCount }} 页</span>
                 </div>
-                <div class="record-actions">
+                <div class="domain-card-actions">
                   <button
-                    class="count-badge"
-                    :class="{ duplicate: record.isDuplicate }"
-                    @click.stop="toggleDetails(record)"
+                    class="card-action-btn close-all-btn"
+                    :disabled="clearing"
+                    @click="closeAllInCard(group)"
                   >
-                    {{ record.count }}
+                    关闭全部 ({{ group.tabCount }})
                   </button>
                   <button
-                    v-if="record.isDuplicate"
-                    class="clear-single-btn"
-                    @click.stop="handleClearSingle(record)"
+                    v-if="group.hasDuplicates"
+                    class="card-action-btn close-dupes-btn"
+                    :disabled="clearing"
+                    @click="closeDuplicatesInCard(group)"
                   >
-                    清除
+                    清除重复 ({{ duplicateCountInCard(group) }})
+                  </button>
+                </div>
+              </div>
+
+              <div class="record-list">
+                <div
+                  v-for="record in visibleRecords(group)"
+                  :key="record.key"
+                  class="record-row"
+                  :class="{ 'is-duplicate': record.isDuplicate }"
+                >
+                  <img
+                    v-if="record.faviconUrl"
+                    class="row-favicon"
+                    :src="record.faviconUrl"
+                    alt=""
+                    @error="$event.target.style.display = 'none'"
+                  >
+                  <div class="row-body" @click="handleFocusTab(record.newestTab)">
+                    <div class="row-title">{{ record.title }}</div>
+                    <div class="row-url">{{ record.fullUrl || record.displayUrl }}</div>
+                  </div>
+                  <span v-if="record.dupeBadge" class="dupe-badge">{{ record.dupeBadge }}</span>
+                  <button
+                    class="row-close-btn"
+                    :disabled="clearing"
+                    :title="record.isDuplicate ? '清除重复页签' : '关闭该页签'"
+                    @click.stop="closeRecord(record)"
+                  >
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+                    </svg>
                   </button>
                 </div>
 
-                <div v-if="expandedRecords.has(record.key)" class="record-details">
-                  <div
-                    v-for="tab in record.tabs"
-                    :key="tab.id"
-                    class="detail-tab-item"
-                    :class="{ newest: tab.isNewest }"
-                  >
-                    <span class="detail-tab-status">
-                      {{ tab.isNewest ? '保留' : '将清除' }}
-                    </span>
-                    <span class="detail-tab-url">{{ tab.url || '无地址' }}</span>
-                  </div>
+                <div
+                  v-if="overflowCount(group) > 0"
+                  class="overflow-chip"
+                  @click="toggleCardExpansion(group)"
+                >
+                  <template v-if="isCardExpanded(group)">收起</template>
+                  <template v-else>+{{ overflowCount(group) }} 更多</template>
                 </div>
               </div>
             </div>
@@ -106,19 +131,8 @@
           确定清除所有 {{ viewData.stats.duplicateTabs }} 个重复页签？
         </span>
         <button class="btn btn-secondary" @click="showBulkConfirm = false">取消</button>
-        <button class="btn btn-danger" @click="handleBulkClear">确认清除</button>
-      </div>
-
-      <div
-        v-if="popoverRecord"
-        class="url-popover"
-        :style="{ top: popoverStyle.top + 'px', left: popoverStyle.left + 'px' }"
-        @mouseenter="popoverStay = true"
-        @mouseleave="handlePopoverLeave"
-      >
-        <div class="popover-url">{{ popoverRecord.fullUrl }}</div>
-        <button class="copy-btn" @click="handleCopyUrl(popoverRecord.fullUrl)">
-          {{ copyStatus === 'success' ? '已复制' : copyStatus === 'failed' ? '复制失败' : '复制' }}
+        <button class="btn btn-danger" :disabled="clearing" @click="handleBulkClear">
+          {{ clearing ? '清除中' : '确认清除' }}
         </button>
       </div>
     </div>
@@ -126,36 +140,69 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, reactive } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { queryAllTabs, buildAllTabsView, focusTab, closeTabs } from '@/utils/tabs-manager'
 
 defineEmits(['close'])
 
-const loading = ref(true)
-const viewData = ref(null)
-const expandedRecords = ref(new Set())
-const showBulkConfirm = ref(false)
-const popoverRecord = ref(null)
-const popoverStay = ref(false)
-const copyStatus = ref('idle')
-const popoverTimer = ref(null)
-const modalRef = ref(null)
-const recordRefs = reactive(new Map())
-const popoverStyle = reactive({ top: 0, left: 0 })
+const VISIBLE_LIMIT = 8
 
-function setRecordRef(key, el) {
-  if (el) {
-    recordRefs.set(key, el)
+const loading = ref(true)
+const clearing = ref(false)
+const actionError = ref('')
+const viewData = ref(null)
+const expandedCards = ref(new Set())
+const showBulkConfirm = ref(false)
+
+const domainColumns = computed(() => {
+  const groups = viewData.value?.groups || []
+  const columnCount = 3
+  const rowsPerColumn = Math.ceil(groups.length / columnCount)
+
+  return Array.from({ length: columnCount }, (_, columnIndex) => {
+    const start = columnIndex * rowsPerColumn
+    return groups.slice(start, start + rowsPerColumn)
+  })
+})
+
+function visibleRecords(group) {
+  if (isCardExpanded(group)) return group.records
+  return group.records.slice(0, VISIBLE_LIMIT)
+}
+
+function overflowCount(group) {
+  return Math.max(0, group.records.length - VISIBLE_LIMIT)
+}
+
+function isCardExpanded(group) {
+  return expandedCards.value.has(group.name)
+}
+
+function toggleCardExpansion(group) {
+  const next = new Set(expandedCards.value)
+  if (next.has(group.name)) {
+    next.delete(group.name)
   } else {
-    recordRefs.delete(key)
+    next.add(group.name)
   }
+  expandedCards.value = next
+}
+
+function duplicateCountInCard(group) {
+  return group.records
+    .filter(r => r.isDuplicate)
+    .reduce((sum, r) => sum + r.oldTabIds.length, 0)
 }
 
 async function runChromeAction(fn) {
+  actionError.value = ''
   try {
     await fn()
+    return true
   } catch (err) {
     console.warn('Chrome action failed:', err)
+    actionError.value = err?.message || '操作失败，请重新加载插件后再试'
+    return false
   }
 }
 
@@ -164,6 +211,10 @@ async function refreshTabs() {
   try {
     const tabs = await queryAllTabs()
     viewData.value = buildAllTabsView(tabs)
+    const validNames = new Set(viewData.value.groups.map(g => g.name))
+    expandedCards.value = new Set(
+      [...expandedCards.value].filter(name => validNames.has(name))
+    )
   } finally {
     loading.value = false
   }
@@ -173,111 +224,143 @@ function handleFocusTab(tab) {
   runChromeAction(() => focusTab(tab))
 }
 
-function toggleDetails(record) {
-  const newSet = new Set(expandedRecords.value)
-  if (newSet.has(record.key)) {
-    newSet.delete(record.key)
-  } else {
-    newSet.add(record.key)
+async function closeRecord(record) {
+  if (clearing.value) return
+  const ids = record.isDuplicate
+    ? record.oldTabIds
+    : [record.newestTab?.id].filter(Boolean)
+  if (!ids.length) {
+    actionError.value = '没有可关闭的页签'
+    await refreshTabs()
+    return
   }
-  expandedRecords.value = newSet
+
+  clearing.value = true
+  try {
+    const success = await runChromeAction(() => closeTabs(ids))
+    if (success) {
+      await refreshTabs()
+    }
+  } finally {
+    clearing.value = false
+  }
 }
 
-async function handleClearSingle(record) {
-  await runChromeAction(() => closeTabs(record.oldTabIds))
-  await refreshTabs()
+async function closeAllInCard(group) {
+  if (clearing.value) return
+  const ids = group.records
+    .flatMap(r => r.tabs.map(t => t.id))
+    .filter(Boolean)
+  if (!ids.length) {
+    actionError.value = '没有可关闭的页签'
+    await refreshTabs()
+    return
+  }
+
+  clearing.value = true
+  try {
+    const success = await runChromeAction(() => closeTabs(ids))
+    if (success) {
+      await refreshTabs()
+    }
+  } finally {
+    clearing.value = false
+  }
+}
+
+async function closeDuplicatesInCard(group) {
+  if (clearing.value) return
+  const ids = group.records
+    .filter(r => r.isDuplicate)
+    .flatMap(r => r.oldTabIds)
+  if (!ids.length) {
+    actionError.value = '没有可清除的重复页签'
+    await refreshTabs()
+    return
+  }
+
+  clearing.value = true
+  try {
+    const success = await runChromeAction(() => closeTabs(ids))
+    if (success) {
+      await refreshTabs()
+    }
+  } finally {
+    clearing.value = false
+  }
 }
 
 async function handleBulkClear() {
+  if (clearing.value) return
   const allOldTabIds = viewData.value.groups.flatMap(group =>
     group.records.filter(r => r.isDuplicate).flatMap(r => r.oldTabIds)
   )
-  await runChromeAction(() => closeTabs(allOldTabIds))
-  showBulkConfirm.value = false
-  await refreshTabs()
-}
-
-function showPopover(record, event) {
-  if (popoverTimer.value) {
-    clearTimeout(popoverTimer.value)
-    popoverTimer.value = null
+  if (!allOldTabIds.length) {
+    actionError.value = '没有可清除的旧页签'
+    await refreshTabs()
+    return
   }
-  popoverRecord.value = record
-  copyStatus.value = 'idle'
 
-  const recordEl = recordRefs.get(record.key)
-  if (recordEl && modalRef.value) {
-    const modalRect = modalRef.value.getBoundingClientRect()
-    const recordRect = recordEl.getBoundingClientRect()
-    popoverStyle.top = recordRect.bottom - modalRect.top + 8
-    popoverStyle.left = recordRect.left - modalRect.left
-  }
-}
-
-function hidePopover(record) {
-  if (popoverTimer.value) {
-    clearTimeout(popoverTimer.value)
-  }
-  popoverTimer.value = setTimeout(() => {
-    if (!popoverStay.value) {
-      popoverRecord.value = null
-    }
-  }, 100)
-}
-
-function handlePopoverLeave() {
-  popoverStay.value = false
-  popoverRecord.value = null
-}
-
-async function handleCopyUrl(url) {
+  clearing.value = true
   try {
-    await navigator.clipboard.writeText(url)
-    copyStatus.value = 'success'
-  } catch {
-    copyStatus.value = 'failed'
-  }
-  setTimeout(() => {
-    if (copyStatus.value !== 'idle') {
-      copyStatus.value = 'idle'
+    const success = await runChromeAction(() => closeTabs(allOldTabIds))
+    if (success) {
+      showBulkConfirm.value = false
+      await refreshTabs()
     }
-  }, 1500)
+  } finally {
+    clearing.value = false
+  }
 }
 
 onMounted(() => {
   refreshTabs()
 })
-
-onUnmounted(() => {
-  if (popoverTimer.value) {
-    clearTimeout(popoverTimer.value)
-  }
-})
 </script>
 
 <style scoped>
 .all-tabs-modal {
+  --paper: #f8f5f0;
+  --ink: #1a1613;
+  --warm-gray: #e8e2da;
+  --muted: #9a918a;
+  --accent-amber: #c8713a;
+  --accent-sage: #5a7a62;
+  --status-abandoned: #b35a5a;
+  --card-bg: #fffdf9;
+  --shadow: rgba(26, 22, 19, 0.06);
+
   width: 90%;
   max-width: 1000px;
+  height: min(85vh, calc(100vh - 48px));
   max-height: 85vh;
   display: flex;
   flex-direction: column;
   position: relative;
+  overflow: hidden;
+  background: var(--paper);
+}
+
+.all-tabs-modal :deep(.modal-header) {
+  flex: 0 0 auto;
 }
 
 .content-wrapper {
   display: flex;
   flex-direction: column;
-  flex: 1;
+  flex: 1 1 auto;
+  min-height: 0;
   overflow: hidden;
 }
 
+/* ---- Top stats bar ---- */
 .all-tabs-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 12px 16px;
-  background: #f8f9fa;
+  background: var(--card-bg);
+  border: 1px solid var(--warm-gray);
   border-radius: 8px;
   margin-bottom: 16px;
   flex-wrap: wrap;
@@ -289,16 +372,16 @@ onUnmounted(() => {
   display: flex;
   gap: 16px;
   font-size: 13px;
-  color: #666;
+  color: var(--muted);
 }
 
 .stat-item strong {
-  color: #333;
+  color: var(--ink);
   font-weight: 600;
 }
 
 .duplicate-count {
-  color: #e53935 !important;
+  color: var(--accent-amber) !important;
 }
 
 .clear-duplicates-btn {
@@ -311,38 +394,83 @@ onUnmounted(() => {
   cursor: not-allowed;
 }
 
-.no-duplicates-hint {
-  text-align: center;
-  padding: 24px;
-  color: #999;
-  font-size: 14px;
+/* ---- Error / hint states ---- */
+.action-error {
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  border-radius: 8px;
+  background: rgba(179, 90, 90, 0.08);
+  border: 1px solid rgba(179, 90, 90, 0.15);
+  color: var(--status-abandoned);
+  font-size: 13px;
   flex-shrink: 0;
 }
 
+.no-duplicates-hint {
+  text-align: center;
+  padding: 24px;
+  color: var(--muted);
+  font-size: 14px;
+  font-style: italic;
+  flex-shrink: 0;
+}
+
+/* ---- Domain grid (3-column masonry) ---- */
 .domain-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  display: flex;
   gap: 16px;
   overflow-y: auto;
-  flex: 1;
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 0;
+  padding-right: 4px;
+  overscroll-behavior: contain;
 }
 
 @media (max-width: 900px) {
-  .domain-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
+  .domain-grid { gap: 14px; }
 }
 
 @media (max-width: 600px) {
-  .domain-grid {
-    grid-template-columns: 1fr;
-  }
+  .domain-grid { gap: 12px; }
 }
 
+.domain-column {
+  display: flex;
+  flex: 1 1 0;
+  min-width: 0;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ---- Domain card ---- */
 .domain-card {
-  background: #f8f9fa;
-  border-radius: 10px;
+  background: var(--card-bg);
+  border: 1px solid var(--warm-gray);
+  border-radius: 8px;
   overflow: hidden;
+  min-width: 0;
+  position: relative;
+  transition: box-shadow 0.25s ease, transform 0.25s ease;
+}
+
+.domain-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--warm-gray);
+}
+
+.domain-card.has-dupes::before {
+  background: var(--accent-amber);
+}
+
+.domain-card:hover {
+  box-shadow: 0 4px 20px var(--shadow);
+  transform: translateY(-1px);
 }
 
 .domain-card-header {
@@ -350,205 +478,214 @@ onUnmounted(() => {
   justify-content: space-between;
   align-items: center;
   padding: 10px 14px;
-  background: white;
-  border-bottom: 1px solid #e9ecef;
+  background: rgba(232, 226, 218, 0.3);
+  border-bottom: 1px solid var(--warm-gray);
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.domain-card-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
 }
 
 .domain-name {
   font-size: 13px;
   font-weight: 600;
-  color: #333;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .domain-count {
-  font-size: 12px;
-  color: #888;
-}
-
-.record-list {
-  padding: 8px;
-}
-
-.record-item {
-  background: white;
-  border-radius: 8px;
-  padding: 10px 12px;
-  margin-bottom: 8px;
-  border: 2px solid transparent;
-  transition: all 0.2s;
-  position: relative;
-}
-
-.record-item:last-child {
-  margin-bottom: 0;
-}
-
-.record-item.duplicate {
-  border-color: #ffe0b2;
-  background: #fff8e1;
-}
-
-.record-body {
-  cursor: pointer;
-  margin-bottom: 8px;
-}
-
-.record-title {
-  font-size: 13px;
-  font-weight: 500;
-  color: #333;
-  margin-bottom: 4px;
+  font-size: 11px;
+  color: var(--muted);
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
-.record-url {
-  font-size: 11px;
-  color: #888;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.record-actions {
+.domain-card-actions {
   display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-.count-badge {
-  padding: 2px 8px;
-  border-radius: 10px;
-  font-size: 11px;
-  font-weight: 600;
-  background: #e9ecef;
-  color: #666;
-  border: none;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.count-badge.duplicate {
-  background: #ff9800;
-  color: white;
-}
-
-.count-badge:hover {
-  opacity: 0.8;
-}
-
-.clear-single-btn {
-  padding: 3px 8px;
-  border-radius: 6px;
-  font-size: 11px;
-  background: #ffebee;
-  color: #e53935;
-  border: none;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.clear-single-btn:hover {
-  background: #ffcdd2;
-}
-
-.record-details {
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px dashed #e0e0e0;
-}
-
-.detail-tab-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 8px;
-  font-size: 12px;
-  color: #666;
-}
-
-.detail-tab-item.newest {
-  color: #43a047;
-}
-
-.detail-tab-status {
-  font-weight: 600;
-  font-size: 11px;
+  gap: 6px;
   flex-shrink: 0;
 }
 
-.detail-tab-url {
+.card-action-btn {
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--warm-gray);
+  background: var(--card-bg);
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.card-action-btn:hover:not(:disabled) {
+  border-color: var(--ink);
+  color: var(--ink);
+}
+
+.card-action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.close-dupes-btn {
+  border-color: rgba(200, 113, 58, 0.3);
+  color: var(--accent-amber);
+  background: rgba(200, 113, 58, 0.04);
+}
+
+.close-dupes-btn:hover:not(:disabled) {
+  background: rgba(200, 113, 58, 0.1);
+  border-color: var(--accent-amber);
+}
+
+/* ---- Record list ---- */
+.record-list {
+  padding: 6px 10px;
+  background: var(--card-bg);
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---- Record row (one per unique URL) ---- */
+.record-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 4px;
+  border-bottom: 1px solid rgba(154, 145, 138, 0.1);
+  line-height: 1.4;
+  transition: background 0.15s ease;
+}
+
+.record-row:last-child {
+  border-bottom: none;
+}
+
+.record-row:hover {
+  background: rgba(200, 113, 58, 0.04);
+}
+
+.row-favicon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  border-radius: 2px;
+}
+
+.row-body {
+  flex: 1;
+  min-width: 0;
+  cursor: pointer;
+}
+
+.row-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink);
+  margin-bottom: 2px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.row-url {
+  font-size: 11px;
+  color: var(--muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
+/* ---- Duplicate badge ---- */
+.dupe-badge {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent-amber);
+  background: rgba(200, 113, 58, 0.08);
+  padding: 2px 6px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+/* ---- Row close button ---- */
+.row-close-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  opacity: 0.35;
+  transition: opacity 0.15s, color 0.15s, background 0.15s;
+  flex-shrink: 0;
+}
+
+.record-row:hover .row-close-btn {
+  opacity: 1;
+}
+
+.row-close-btn:hover:not(:disabled) {
+  opacity: 1;
+  background: rgba(179, 90, 90, 0.08);
+  color: var(--status-abandoned);
+}
+
+.row-close-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* ---- Overflow chip ("+N more" / "收起") ---- */
+.overflow-chip {
+  font-size: 12px;
+  color: var(--muted);
+  padding: 6px 4px;
+  cursor: pointer;
+  text-align: center;
+  transition: color 0.15s;
+}
+
+.overflow-chip:hover {
+  color: var(--ink);
+}
+
+/* ---- Bulk confirm bar ---- */
 .bulk-confirm-bar {
-  position: sticky;
-  bottom: 0;
-  left: 0;
-  right: 0;
   display: flex;
   align-items: center;
   justify-content: flex-end;
   gap: 12px;
   margin-top: 16px;
   padding-top: 16px;
-  border-top: 1px solid #e0e0e0;
+  border-top: 1px solid var(--warm-gray);
   flex-shrink: 0;
 }
 
 .confirm-message {
   flex: 1;
   font-size: 14px;
-  color: #666;
+  color: var(--muted);
 }
 
 .btn-danger {
-  background: #e53935;
+  background: var(--status-abandoned);
   color: white;
 }
 
 .btn-danger:hover {
-  background: #c62828;
-}
-
-.url-popover {
-  position: absolute;
-  z-index: 1001;
-  background: #333;
-  color: white;
-  padding: 10px 12px;
-  border-radius: 8px;
-  font-size: 12px;
-  max-width: 400px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-}
-
-.popover-url {
-  flex: 1;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.copy-btn {
-  padding: 4px 10px;
-  border-radius: 4px;
-  background: #667eea;
-  color: white;
-  border: none;
-  cursor: pointer;
-  font-size: 12px;
-  flex-shrink: 0;
-  transition: all 0.2s;
-}
-
-.copy-btn:hover {
-  background: #5a6fd6;
+  background: #9a4848;
 }
 </style>
