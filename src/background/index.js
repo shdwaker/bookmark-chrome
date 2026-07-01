@@ -1,5 +1,6 @@
 // Background Service Worker - 监听页面访问
 
+import { getSettings } from '../utils/storage.js'
 import { initDB, addTraceRecord, cleanOldRecords, extractDomain, shouldTrackUrl } from '../utils/trace-manager.js'
 
 // 初始化
@@ -8,19 +9,6 @@ initDB().then(() => {
 }).catch(err => {
   console.error('Failed to initialize IndexedDB:', err)
 })
-
-// 获取设置
-async function getSettings() {
-  return new Promise((resolve) => {
-    chrome.storage.local.get('settings', (result) => {
-      resolve(result.settings || {
-        enableTrace: true,
-        traceRetentionDays: 7,
-        excludedDomains: []
-      })
-    })
-  })
-}
 
 // 监听标签页更新
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
@@ -98,5 +86,7 @@ chrome.runtime.onInstalled.addListener(async (details) => {
   } else if (details.reason === 'update') {
     // 更新
     console.log('Extension updated to version', chrome.runtime.getManifest().version)
+    const settings = await getSettings()
+    await chrome.storage.local.set({ settings })
   }
 })

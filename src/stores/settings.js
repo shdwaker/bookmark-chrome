@@ -1,17 +1,11 @@
 // 设置状态管理
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { getSettings, saveSettings } from '@/utils/storage'
+import { getSettings, saveSettings, DEFAULT_SETTINGS } from '@/utils/storage'
 
 export const useSettingsStore = defineStore('settings', () => {
   // 默认设置
-  const defaultSettings = {
-    enableTrace: true,           // 是否启用访问记录追踪
-    traceRetentionDays: 7,       // 记录保留天数
-    bookmarksPerPage: 20,        // 每页显示书签数量
-    defaultRootFolder: '',       // 默认选中的根文件夹
-    excludedDomains: []          // 排除的域名列表
-  }
+  const defaultSettings = { ...DEFAULT_SETTINGS }
 
   // 设置状态
   const settings = ref({ ...defaultSettings })

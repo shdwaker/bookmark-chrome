@@ -5,6 +5,22 @@ const STORAGE_KEYS = {
   SETTINGS: 'settings'
 }
 
+export const DEFAULT_SETTINGS = {
+  enableTrace: true,
+  traceRetentionDays: 7,
+  bookmarksPerPage: 20,
+  defaultRootFolder: '',
+  excludedDomains: []
+}
+
+export function normalizeSettings(settings) {
+  return {
+    ...DEFAULT_SETTINGS,
+    ...(settings || {}),
+    excludedDomains: Array.isArray(settings?.excludedDomains) ? settings.excludedDomains : []
+  }
+}
+
 // 获取存储数据
 export async function getStorage(key) {
   return new Promise((resolve) => {
@@ -55,13 +71,7 @@ export async function toggleFavoriteFolder(folderId) {
 // 获取设置
 export async function getSettings() {
   const settings = await getStorage(STORAGE_KEYS.SETTINGS)
-  return settings || {
-    enableTrace: true,
-    traceRetentionDays: 7,
-    bookmarksPerPage: 20,
-    defaultRootFolder: '',
-    excludedDomains: []
-  }
+  return normalizeSettings(settings)
 }
 
 // 保存设置
