@@ -39,6 +39,18 @@ function getDisplayPath(url) {
   }
 }
 
+function getFaviconUrl(url) {
+  if (!url) return ''
+  try {
+    const parsed = new URL(url)
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return ''
+    const hostname = parsed.hostname
+    return hostname ? `https://www.google.com/s2/favicons?domain=${hostname}&sz=16` : ''
+  } catch {
+    return ''
+  }
+}
+
 function compareRecords(a, b) {
   if (a.isDuplicate !== b.isDuplicate) return a.isDuplicate ? -1 : 1
   if (a.newestOrder !== b.newestOrder) return b.newestOrder - a.newestOrder
@@ -106,6 +118,8 @@ export function buildAllTabsView(tabs, options = {}) {
         ...record,
         title: newestTab.title || record.title,
         fullUrl: newestTab.url || record.fullUrl,
+        faviconUrl: getFaviconUrl(newestTab.url),
+        dupeBadge: detailTabs.length > 1 ? `${detailTabs.length}x` : '',
         count: detailTabs.length,
         isDuplicate: detailTabs.length > 1,
         newestTab,
@@ -144,8 +158,11 @@ export async function queryAllTabs() {
 }
 
 export async function closeTabs(tabIds) {
-  if (!tabIds.length) return
-  await chrome.tabs.remove(tabIds)
+  const ids = Array.from(tabIds || [])
+    .map(id => Number(id))
+    .filter(Number.isInteger)
+  if (!ids.length) return
+  await chrome.tabs.remove(ids)
 }
 
 export async function focusTab(tab) {

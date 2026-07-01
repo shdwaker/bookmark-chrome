@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
-import { buildAllTabsView, getNormalizedTabUrl, getTabGroupName } from './tabs-manager'
+import { describe, expect, it, vi } from 'vitest'
+import { buildAllTabsView, closeTabs, getNormalizedTabUrl, getTabGroupName } from './tabs-manager'
 
 const extensionOrigin = 'chrome-extension://abc123'
 
@@ -96,5 +96,44 @@ describe('buildAllTabsView', () => {
     const otherGroup = view.groups.find(g => g.name === '其他页面')
     expect(otherGroup).toBeDefined()
     expect(otherGroup.tabCount).toBe(4) // 3 invalid/missing + 1 invalid URL
+  })
+
+  it('adds faviconUrl and dupeBadge to records', () => {
+    const view = buildAllTabsView([
+      tab({ id: 1, index: 0, title: 'Old issue', url: 'https://github.com/repo/issues?page=1' }),
+      tab({ id: 2, index: 1, title: 'New issue', url: 'https://github.com/repo/issues?page=2' }),
+      tab({ id: 3, index: 2, title: 'Pulls', url: 'https://github.com/repo/pulls' })
+    ], { extensionOrigin })
+
+    const dupeRecord = view.groups[0].records[0]
+    expect(dupeRecord.faviconUrl).toBe('https://www.google.com/s2/favicons?domain=github.com&sz=16')
+    expect(dupeRecord.dupeBadge).toBe('2x')
+
+    const singleRecord = view.groups[0].records[1]
+    expect(singleRecord.faviconUrl).toBe('https://www.google.com/s2/favicons?domain=github.com&sz=16')
+    expect(singleRecord.dupeBadge).toBe('')
+  })
+
+  it('returns empty faviconUrl for urls without a parseable hostname', () => {
+    const view = buildAllTabsView([
+      tab({ id: 1, index: 0, title: 'Chrome', url: 'chrome://extensions' })
+    ], { extensionOrigin })
+
+    expect(view.groups[0].records[0].faviconUrl).toBe('')
+    expect(view.groups[0].records[0].dupeBadge).toBe('')
+  })
+})
+
+describe('closeTabs', () => {
+  it('passes a plain integer array to chrome.tabs.remove', async () => {
+    const remove = vi.fn().mockResolvedValue(undefined)
+    globalThis.chrome = { tabs: { remove } }
+    const proxiedIds = new Proxy([1, 2], {})
+
+    await closeTabs(proxiedIds)
+
+    expect(remove).toHaveBeenCalledWith([1, 2])
+    expect(remove.mock.calls[0][0]).not.toBe(proxiedIds)
+    expect(Array.isArray(remove.mock.calls[0][0])).toBe(true)
   })
 })
