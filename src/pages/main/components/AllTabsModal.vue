@@ -308,14 +308,17 @@ onMounted(() => {
 
 <style scoped>
 .all-tabs-panel {
-  --paper: #f8f5f0;
-  --ink: #1a1613;
-  --warm-gray: #e8e2da;
-  --muted: #9a918a;
-  --accent-amber: #c8713a;
-  --status-abandoned: #b35a5a;
-  --card-bg: #fffdf9;
-  --shadow: rgba(26, 22, 19, 0.06);
+  --paper: #f5f5f5;
+  --ink: #333;
+  --warm-gray: #e0e0e0;
+  --muted: #888;
+  --accent: #667eea;
+  --accent-light: #e8ecff;
+  --accent-hover: #5a6fd6;
+  --danger: #e53935;
+  --danger-light: #ffebee;
+  --card-bg: white;
+  --shadow: rgba(0, 0, 0, 0.08);
 
   flex: 1;
   display: flex;
@@ -363,7 +366,7 @@ onMounted(() => {
 }
 
 .duplicate-count {
-  color: var(--accent-amber) !important;
+  color: var(--danger) !important;
 }
 
 .clear-duplicates-btn {
@@ -389,9 +392,9 @@ onMounted(() => {
   padding: 10px 12px;
   margin-bottom: 12px;
   border-radius: 8px;
-  background: rgba(179, 90, 90, 0.08);
-  border: 1px solid rgba(179, 90, 90, 0.15);
-  color: var(--status-abandoned);
+  background: var(--danger-light);
+  border: 1px solid rgba(229, 57, 53, 0.2);
+  color: var(--danger);
   font-size: 13px;
   flex-shrink: 0;
 }
@@ -435,16 +438,16 @@ onMounted(() => {
   left: 0;
   right: 0;
   height: 3px;
-  background: var(--warm-gray);
+  background: var(--accent);
 }
 
 .domain-card.has-dupes::before {
-  background: var(--accent-amber);
+  background: var(--danger);
 }
 
 .domain-card:hover {
-  box-shadow: 0 4px 20px var(--shadow);
-  transform: translateY(-1px);
+  box-shadow: 0 4px 16px var(--shadow);
+  transform: translateY(-2px);
 }
 
 .domain-card-header {
@@ -452,7 +455,7 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   padding: 10px 14px;
-  background: rgba(232, 226, 218, 0.3);
+  background: #f5f5f5;
   border-bottom: 1px solid var(--warm-gray);
   gap: 8px;
   flex-wrap: wrap;
@@ -511,14 +514,14 @@ onMounted(() => {
 }
 
 .close-dupes-btn {
-  border-color: rgba(200, 113, 58, 0.3);
-  color: var(--accent-amber);
-  background: rgba(200, 113, 58, 0.04);
+  border-color: rgba(229, 57, 53, 0.3);
+  color: var(--danger);
+  background: var(--danger-light);
 }
 
 .close-dupes-btn:hover:not(:disabled) {
-  background: rgba(200, 113, 58, 0.1);
-  border-color: var(--accent-amber);
+  background: rgba(229, 57, 53, 0.15);
+  border-color: var(--danger);
 }
 
 /* ---- Record list ---- */
@@ -535,7 +538,7 @@ onMounted(() => {
   align-items: center;
   gap: 8px;
   padding: 8px 4px;
-  border-bottom: 1px solid rgba(154, 145, 138, 0.1);
+  border-bottom: 1px solid #f0f0f0;
   line-height: 1.4;
   transition: background 0.15s ease;
 }
@@ -545,7 +548,7 @@ onMounted(() => {
 }
 
 .record-row:hover {
-  background: rgba(200, 113, 58, 0.04);
+  background: var(--accent-light);
 }
 
 .row-favicon {
@@ -584,8 +587,8 @@ onMounted(() => {
 .dupe-badge {
   font-size: 11px;
   font-weight: 600;
-  color: var(--accent-amber);
-  background: rgba(200, 113, 58, 0.08);
+  color: var(--danger);
+  background: var(--danger-light);
   padding: 2px 6px;
   border-radius: 3px;
   flex-shrink: 0;
@@ -613,8 +616,8 @@ onMounted(() => {
 
 .row-close-btn:hover:not(:disabled) {
   opacity: 1;
-  background: rgba(179, 90, 90, 0.08);
-  color: var(--status-abandoned);
+  background: var(--danger-light);
+  color: var(--danger);
 }
 
 .row-close-btn:disabled {
@@ -655,11 +658,11 @@ onMounted(() => {
 }
 
 .btn-danger {
-  background: var(--status-abandoned);
+  background: var(--danger);
   color: white;
 }
 
 .btn-danger:hover {
-  background: #9a4848;
+  background: #c62828;
 }
 </style>
