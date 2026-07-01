@@ -325,7 +325,6 @@ onMounted(() => {
   --warm-gray: #e8e2da;
   --muted: #9a918a;
   --accent-amber: #c8713a;
-  --accent-sage: #5a7a62;
   --status-abandoned: #b35a5a;
   --card-bg: #fffdf9;
   --shadow: rgba(26, 22, 19, 0.06);
@@ -415,9 +414,10 @@ onMounted(() => {
   flex-shrink: 0;
 }
 
-/* ---- Domain grid (3-column masonry) ---- */
+/* ---- Domain grid (responsive masonry via flex-wrap) ---- */
 .domain-grid {
   display: flex;
+  flex-wrap: wrap;
   gap: 16px;
   overflow-y: auto;
   flex: 1 1 auto;
@@ -427,17 +427,9 @@ onMounted(() => {
   overscroll-behavior: contain;
 }
 
-@media (max-width: 900px) {
-  .domain-grid { gap: 14px; }
-}
-
-@media (max-width: 600px) {
-  .domain-grid { gap: 12px; }
-}
-
 .domain-column {
   display: flex;
-  flex: 1 1 0;
+  flex: 1 1 280px;
   min-width: 0;
   flex-direction: column;
   gap: 16px;
