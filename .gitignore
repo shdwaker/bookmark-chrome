@@ -28,3 +28,6 @@ npm-debug.log*
 *.temp
 .superpowers/
 .worktrees/
+
+# Claude Code (local config and agent worktrees)
+.claude/
