@@ -1,8 +1,8 @@
 # Dependencies
 node_modules/
 
-# Build output
-dist/
+# Build output (dist/ is tracked intentionally so users can load the extension without building)
+# dist/
 
 # IDE
 .idea/
