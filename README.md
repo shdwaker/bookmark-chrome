@@ -1,113 +1,159 @@
-# 书签管理器 - Chrome Extension
+# Bookmark Manager
 
-一个功能强大的 Chrome 书签管理插件，支持书签同步、标签管理、访问记录追踪等功能。
+A Chrome extension that combines bookmark management, tags, visit tracing, and an all-tabs overview into the new-tab page. Replaces Chrome's default new tab with a powerful bookmark workspace.
 
-## 功能特性
+English | [简体中文](README.zh-CN.md)
 
-- **书签同步与管理** - 与 Chrome 浏览器书签实时同步
-- **文件夹树形展示** - 可折叠的文件夹树结构导航
-- **书签标签系统** - 为书签添加自定义标签，支持标签过滤
-- **书签搜索** - 搜索书签标题、URL 和标签
-- **分页显示** - 可配置每页显示数量
-- **文件夹收藏** - 收藏常用文件夹，快速访问
-- **访问记录追踪** - 记录浏览历史，支持网站留痕和网址留痕
-- **新标签页集成** - 打开新标签页时显示书签管理器
+<!-- screenshot: drop a gif/png here -->
 
-## 技术栈
+## Features
 
-- Vue 3 + Composition API
-- Vite + CRXJS (Chrome Extension 打包)
-- Pinia (状态管理)
-- Chrome Extension Manifest V3
-- IndexedDB (访问记录存储)
+- **Real-time Chrome bookmark sync** — read/write bookmarks via the Chrome bookmarks API
+- **Collapsible folder tree** — navigate large bookmark trees with foldable folders
+- **Custom tag system** — add tags to any bookmark, filter by tag
+- **Bookmark search** — search by title, URL, or tag
+- **Configurable pagination** — show 10 / 20 / 50 / 100 bookmarks per page
+- **Favorite folders** — pin frequently-used folders for quick access
+- **Visit tracing** — record per-site and per-URL visits in IndexedDB
+- **All-tabs overview** — view and export all currently open tabs
+- **New-tab integration** — replaces Chrome's default new-tab page
 
-## 安装
+## Installation
 
-### 从源码安装
+### Method 1 (recommended): load the prebuilt `dist/`
 
-1. 克隆仓库
-```bash
-git clone https://github.com/your-username/bookmark-chrome.git
-cd bookmark-chrome
-```
+The repository ships a built `dist/` directory, so you can run the extension without installing Node.js or building from source.
 
-2. 安装依赖
-```bash
-npm install
-```
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/shdwaker/bookmark-chrome.git
+   ```
+2. Open `chrome://extensions` in Chrome.
+3. Toggle **Developer mode** on (top-right).
+4. Click **Load unpacked**.
+5. Select the `dist/` directory inside the cloned repo.
 
-3. 构建项目
-```bash
-npm run build
-```
+### Method 2: build from source
 
-4. 在 Chrome 中加载扩展
-   - 打开 Chrome 扩展管理页面 (`chrome://extensions/`)
-   - 开启"开发者模式"
-   - 点击"加载已解压的扩展程序"
-   - 选择项目的 `dist` 目录
+1. Clone and install:
+   ```bash
+   git clone https://github.com/shdwaker/bookmark-chrome.git
+   cd bookmark-chrome
+   npm install
+   ```
+2. Build:
+   ```bash
+   npm run build
+   ```
+3. Load the generated `dist/` directory as in Method 1, steps 2-5.
 
-## 开发
+## Usage
 
-```bash
-# 启动开发服务器
-npm run dev
+- **Open a new tab** — the bookmark manager appears in place of Chrome's default new-tab page.
+- **Browse** the folder tree on the left; click a folder to list its bookmarks.
+- **Search** using the search bar (matches title, URL, and tags).
+- **Tags** — add or edit tags on a bookmark via its edit modal; filter by tag from the toolbar.
+- **Favorite folders** — star a folder for quick access.
+- **Visit tracing** — open the trace modal to see per-site and per-URL visit history.
+- **All-tabs overview** — open the all-tabs panel to see and export every currently open tab.
+- **Settings** — click the gear icon to open the settings page.
 
-# 构建生产版本
-npm run build
+## Configuration
 
-# 预览构建结果
-npm run preview
-```
+Open the settings page (gear icon) to configure:
 
-## 项目结构
+- **Visit tracing** — enable / disable visit recording
+- **Trace retention** — keep records for 1 / 3 / 7 / 14 / 30 days
+- **Bookmarks per page** — 10 / 20 / 50 / 100
+- **Default root folder** — the folder shown on startup
+- **Excluded domains** — domains whose visits are never recorded
+
+## Chrome permissions
+
+| Permission | Purpose |
+|------------|---------|
+| `bookmarks` | Read and write Chrome bookmarks |
+| `storage`   | Persist settings and favorite folders |
+| `tabs`      | Listen to tab updates for visit tracing |
+| `alarms`    | Periodic cleanup of expired trace records |
+| `history`   | Declared in the manifest, not yet used in code (reserved) |
+
+## Tech stack
+
+- [Vue 3](https://vuejs.org/) + Composition API
+- [Vite](https://vitejs.dev/) + [@crxjs/vite-plugin](https://crxjs.dev/vite-plugin)
+- [Pinia](https://pinia.vuejs.org/) for state management
+- Chrome Extension **Manifest V3**
+- **IndexedDB** for visit-trace storage
+- [Vitest](https://vitest.dev/) for testing
+
+## Project structure
 
 ```
 bookmark-chrome/
+├── dist/                          # Built extension (tracked — load this directly)
 ├── public/
-│   └── icons/                    # 插件图标
+│   └── icons/                     # Extension icons
 ├── src/
 │   ├── background/
-│   │   └── index.js              # Service Worker
+│   │   └── index.js               # Service worker (visit tracing, alarms)
 │   ├── pages/
-│   │   ├── main/                 # 主页面
+│   │   ├── main/                   # New-tab page
 │   │   │   ├── App.vue
 │   │   │   ├── main.js
 │   │   │   ├── styles.css
 │   │   │   └── components/
-│   │   └── settings/             # 设置页面
+│   │   │       ├── BookmarkList.vue
+│   │   │       ├── BookmarkEditModal.vue
+│   │   │       ├── FolderTree.vue
+│   │   │       ├── FolderItem.vue
+│   │   │       ├── FolderEditModal.vue
+│   │   │       ├── TagEditModal.vue
+│   │   │       ├── TraceModal.vue
+│   │   │       ├── AllTabsModal.vue
+│   │   │       ├── ConfirmModal.vue
+│   │   │       └── TopNav.vue
+│   │   └── settings/              # Settings page
 │   │       ├── App.vue
-│   │       └── main.js
-│   ├── stores/                   # 状态管理
-│   │   ├── bookmarks.js
-│   │   ├── traces.js
-│   │   └── settings.js
+│   │       ├── main.js
+│   │       └── styles.css
+│   ├── stores/
+│   │   ├── bookmarks.js           # Pinia: bookmark state
+│   │   └── settings.js            # Pinia: settings state
 │   └── utils/
-│       ├── bookmark-api.js       # Chrome书签API封装
-│       ├── storage.js            # 存储工具
-│       ├── tag-manager.js        # 标签管理
-│       └── trace-manager.js      # 访问记录管理
-├── manifest.json                 # Chrome扩展配置
+│       ├── bookmark-api.js        # Chrome bookmarks API wrapper
+│       ├── storage.js              # Settings storage helpers
+│       ├── tag-manager.js         # Tag CRUD
+│       ├── trace-manager.js       # IndexedDB visit tracing
+│       └── tabs-manager.js        # Tab utilities (all-tabs)
+├── manifest.json
 ├── vite.config.js
 ├── package.json
 ├── LICENSE
 └── README.md
 ```
 
-## 配置选项
+## Development
 
-在设置页面可配置：
+```bash
+npm run dev       # Start Vite dev server
+npm run build     # Production build to dist/
+npm run preview   # Preview the production build
+npm test          # Run Vitest tests
+```
 
-- **访问记录追踪** - 启用/禁用浏览记录追踪
-- **记录保留天数** - 1/3/7/14/30 天
-- **每页显示书签数量** - 10/20/50/100 个
-- **默认选中文件夹** - 打开时默认显示的根文件夹
-- **排除域名** - 不记录特定域名的访问
+## Testing
 
-## 许可证
+Tests are written with [Vitest](https://vitest.dev/) and live in `src/utils/*.test.js`:
 
-[MIT License](LICENSE)
+```bash
+npm test
+```
 
-## 贡献
+## Contributing
 
-欢迎提交 Issue 和 Pull Request。
+Issues and pull requests are welcome at [shdwaker/bookmark-chrome](https://github.com/shdwaker/bookmark-chrome).
+
+## License
+
+[MIT](LICENSE)
