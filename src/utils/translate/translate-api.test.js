@@ -1,11 +1,13 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
-import { translate } from './translate-api'
+import { translate, normalizeModel } from './translate-api'
 
 function mockResponse(body, status = 200) {
+  const bodyStr = typeof body === 'string' ? body : JSON.stringify(body)
   return {
     status,
     ok: status >= 200 && status < 300,
-    json: async () => body
+    json: async () => body,
+    text: async () => bodyStr
   }
 }
 
@@ -98,5 +100,71 @@ describe('translate', () => {
     await expect(translate({
       text: 'hi', direction: 'auto', provider: 'doubao', apiKey: 'k', model: ''
     })).rejects.toThrow(/模型/)
+  })
+
+  it('includes response body detail in non-OK error message', async () => {
+    globalThis.fetch.mockResolvedValue(mockResponse(
+      { error: { message: 'Invalid endpoint id' } }, 400
+    ))
+    await expect(translate({
+      text: 'hi', direction: 'auto', provider: 'doubao', apiKey: 'k', model: 'ep-bad'
+    })).rejects.toThrow(/Invalid endpoint id/)
+  })
+
+  it('extracts model from URL with model query param', async () => {
+    globalThis.fetch.mockResolvedValue(mockResponse({
+      choices: [{ message: { content: '{"translation":"hi","notes":""}' } }]
+    }))
+    await translate({
+      text: '你好',
+      direction: 'auto',
+      provider: 'doubao',
+      apiKey: 'k',
+      model: 'https://ark.cn-beijing.volces.com/api/v3/chat/completions?model=ep-2024abc'
+    })
+    const body = JSON.parse(globalThis.fetch.mock.calls[0][1].body)
+    expect(body.model).toBe('ep-2024abc')
+  })
+
+  it('extracts model from URL last path segment', async () => {
+    globalThis.fetch.mockResolvedValue(mockResponse({
+      choices: [{ message: { content: '{"translation":"hi","notes":""}' } }]
+    }))
+    await translate({
+      text: '你好',
+      direction: 'auto',
+      provider: 'doubao',
+      apiKey: 'k',
+      model: 'https://ark.cn-beijing.volces.com/api/v3/ep-2024xyz'
+    })
+    const body = JSON.parse(globalThis.fetch.mock.calls[0][1].body)
+    expect(body.model).toBe('ep-2024xyz')
+  })
+})
+
+describe('normalizeModel', () => {
+  it('returns plain string as-is', () => {
+    expect(normalizeModel('qwen-max')).toBe('qwen-max')
+    expect(normalizeModel('ep-2024abc-xyz')).toBe('ep-2024abc-xyz')
+  })
+  it('returns empty for empty input', () => {
+    expect(normalizeModel('')).toBe('')
+    expect(normalizeModel(null)).toBe('')
+    expect(normalizeModel(undefined)).toBe('')
+  })
+  it('extracts model from ?model= query param', () => {
+    expect(normalizeModel('https://ark.cn-beijing.volces.com/api/v3/chat/completions?model=ep-2024abc'))
+      .toBe('ep-2024abc')
+  })
+  it('extracts last non-keyword path segment from URL', () => {
+    expect(normalizeModel('https://ark.cn-beijing.volces.com/api/v3/ep-2024xyz'))
+      .toBe('ep-2024xyz')
+  })
+  it('returns empty when URL is just the endpoint with no model', () => {
+    expect(normalizeModel('https://ark.cn-beijing.volces.com/api/v3/chat/completions'))
+      .toBe('')
+  })
+  it('trims whitespace', () => {
+    expect(normalizeModel('  qwen-max  ')).toBe('qwen-max')
   })
 })

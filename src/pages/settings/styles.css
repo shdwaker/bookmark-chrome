@@ -278,21 +278,40 @@ select:focus {
   transform: translateY(-1px);
 }
 
+.translate-provider-row {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+}
+.provider-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.provider-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+}
 .translate-inputs {
   display: flex;
   gap: 8px;
   align-items: center;
 }
-.translate-inputs input[type="password"],
 .translate-inputs input[type="text"] {
-  padding: 6px 10px;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  font-size: 13px;
+  flex: 1;
+  padding: 10px 14px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 14px;
+  min-width: 0;
 }
-.translate-inputs input[type="password"] {
-  width: 180px;
+.translate-inputs input[type="text"]:focus {
+  outline: none;
+  border-color: #667eea;
 }
-.translate-inputs input[type="text"] {
-  width: 140px;
+.translate-inputs .test-btn {
+  flex: 0 0 auto;
+  min-width: 72px;
+  padding: 10px 16px;
 }

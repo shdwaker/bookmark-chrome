@@ -96,15 +96,15 @@
       <div class="settings-section">
         <h2>AI 翻译</h2>
         <p class="section-desc">配置大模型 API key，支持阿里千问、火山豆包、智谱 GLM、Kimi</p>
-        <div v-for="name in translateProviderNames" :key="name" class="setting-item">
-          <div class="setting-label">
-            <span>{{ translateProviderLabel(name) }}</span>
-            <span class="setting-desc">{{ translateProviderHint(name) }}</span>
+        <div v-for="name in translateProviderNames" :key="name" class="setting-item translate-provider-row">
+          <div class="provider-info">
+            <div class="provider-name">{{ translateProviderLabel(name) }}</div>
+            <div v-if="translateProviderHint(name)" class="setting-desc">{{ translateProviderHint(name) }}</div>
           </div>
           <div class="translate-inputs">
             <input
               v-model="settings.translate.providers[name].apiKey"
-              type="password"
+              type="text"
               placeholder="API key"
               @change="saveSettings"
             >
@@ -114,7 +114,7 @@
               :placeholder="translateModelPlaceholder(name)"
               @change="saveSettings"
             >
-            <button class="secondary-btn" @click="testConnection(name)">测试</button>
+            <button class="secondary-btn test-btn" @click="testConnection(name)">测试</button>
           </div>
         </div>
         <div class="setting-item">
@@ -208,12 +208,12 @@ function translateProviderLabel(name) {
 }
 
 function translateProviderHint(name) {
-  if (name === 'doubao') return '需要在火山方舟控制台创建 endpoint，model 填 endpoint id'
+  if (name === 'doubao') return '在火山方舟控制台创建推理接入点，model 填 endpoint id（如 ep-2024xxx）或模型名（如 doubao-1.5-pro-32k）。也可粘贴包含 model 的完整 URL'
   return ''
 }
 
 function translateModelPlaceholder(name) {
-  if (name === 'doubao') return 'endpoint id'
+  if (name === 'doubao') return 'endpoint id 或模型名'
   return PROVIDERS[name]?.defaultModel || '模型名'
 }
 
