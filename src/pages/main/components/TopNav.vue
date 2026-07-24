@@ -104,6 +104,17 @@
         </svg>
         全部页签
       </button>
+      <button class="nav-action-btn" @click="$emit('open-translate')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M5 8l6 6"/>
+          <path d="M4 14l6-6 2-2"/>
+          <path d="M2 5h12"/>
+          <path d="M7 2h1"/>
+          <path d="M22 22l-5-10-5 10"/>
+          <path d="M14 18h6"/>
+        </svg>
+        翻译
+      </button>
       <button class="nav-action-btn" @click="$emit('open-settings')">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <circle cx="12" cy="12" r="3"/>
@@ -140,7 +151,7 @@ const props = defineProps({
   }
 })
 
-defineEmits(['select-root-folder', 'open-trace', 'open-settings', 'open-all-tabs'])
+defineEmits(['select-root-folder', 'open-trace', 'open-settings', 'open-all-tabs', 'open-translate'])
 
 const bookmarkStore = useBookmarkStore()
 

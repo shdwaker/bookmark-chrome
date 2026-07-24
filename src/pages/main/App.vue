@@ -9,6 +9,7 @@
       @open-trace="handleOpenTrace"
       @open-settings="handleOpenSettings"
       @open-all-tabs="handleOpenAllTabs"
+      @open-translate="handleOpenTranslate"
     />
     <div class="main-content">
       <AllTabsPanel v-if="activeView === 'all-tabs'" />
@@ -62,6 +63,12 @@
       @confirm="handleConfirmDelete"
       @close="showConfirm = false"
     />
+
+    <!-- 翻译弹窗 -->
+    <TranslateModal
+      v-if="showTranslate"
+      @close="showTranslate = false"
+    />
   </div>
 </template>
 
@@ -76,6 +83,7 @@ import BookmarkEditModal from './components/BookmarkEditModal.vue'
 import FolderEditModal from './components/FolderEditModal.vue'
 import TraceModal from './components/TraceModal.vue'
 import ConfirmModal from './components/ConfirmModal.vue'
+import TranslateModal from './components/TranslateModal.vue'
 import AllTabsPanel from './components/AllTabsModal.vue'
 
 const bookmarkStore = useBookmarkStore()
@@ -86,6 +94,7 @@ const showBookmarkEdit = ref(false)
 const showFolderEdit = ref(false)
 const showTrace = ref(false)
 const traceMode = ref('url')
+const showTranslate = ref(false)
 const editingBookmark = ref(null)
 const editingFolder = ref(null)
 const activeView = ref('all-tabs')
@@ -239,6 +248,11 @@ function handleOpenSettings() {
 // 处理打开全部页签（切换视图）
 function handleOpenAllTabs() {
   activeView.value = activeView.value === 'all-tabs' ? 'bookmarks' : 'all-tabs'
+}
+
+// 处理打开翻译
+function handleOpenTranslate() {
+  showTranslate.value = true
 }
 </script>
 
