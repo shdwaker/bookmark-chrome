@@ -24,6 +24,25 @@
         @keydown.ctrl.enter="handleTranslate"
       ></textarea>
 
+      <div class="speak-row">
+        <button
+          class="speak-btn"
+          :class="{ speaking: playingKey === 'input-normal' }"
+          :disabled="!inputText.trim()"
+          @click="toggleSpeak(inputText, 1, 'input-normal')"
+        >
+          {{ playingKey === 'input-normal' ? '停止' : '朗读原文' }}
+        </button>
+        <button
+          class="speak-btn"
+          :class="{ speaking: playingKey === 'input-slow' }"
+          :disabled="!inputText.trim()"
+          @click="toggleSpeak(inputText, 0.6, 'input-slow')"
+        >
+          {{ playingKey === 'input-slow' ? '停止' : '慢速原文' }}
+        </button>
+      </div>
+
       <button
         class="btn btn-primary"
         :disabled="store.loading || !inputText.trim()"
@@ -37,9 +56,22 @@
       <div v-if="store.result" class="translate-result">
         <div class="result-row">
           <div class="result-label">译文</div>
-          <button class="speak-btn" :class="{ speaking: isSpeaking }" @click="toggleSpeak(store.result.translation)">
-            {{ isSpeaking ? '停止' : '朗读' }}
-          </button>
+          <div class="speak-group">
+            <button
+              class="speak-btn"
+              :class="{ speaking: playingKey === 'result-normal' }"
+              @click="toggleSpeak(store.result.translation, 1, 'result-normal')"
+            >
+              {{ playingKey === 'result-normal' ? '停止' : '朗读' }}
+            </button>
+            <button
+              class="speak-btn"
+              :class="{ speaking: playingKey === 'result-slow' }"
+              @click="toggleSpeak(store.result.translation, 0.6, 'result-slow')"
+            >
+              {{ playingKey === 'result-slow' ? '停止' : '慢速' }}
+            </button>
+          </div>
         </div>
         <div class="result-translation">{{ store.result.translation }}</div>
         <div v-if="store.result.notes" class="result-notes">{{ store.result.notes }}</div>
@@ -62,7 +94,7 @@ const inputText = ref('')
 const provider = ref('qwen')
 const direction = ref('auto')
 const configuredProviders = ref([])
-const isSpeaking = ref(false)
+const playingKey = ref('')
 const speakHint = ref('')
 let voices = []
 
@@ -112,15 +144,15 @@ function pickVoice(lang) {
   return null
 }
 
-function toggleSpeak(text) {
-  if (isSpeaking.value) {
+function toggleSpeak(text, rate, key) {
+  if (playingKey.value === key) {
     stopSpeak()
     return
   }
-  speak(text)
+  speak(text, rate, key)
 }
 
-function speak(text) {
+function speak(text, rate = 1, key = '') {
   if (!('speechSynthesis' in window)) {
     speakHint.value = '当前浏览器不支持语音合成'
     return
@@ -132,26 +164,26 @@ function speak(text) {
   synth.cancel()
 
   const utter = new SpeechSynthesisUtterance(text)
-  // detect language from the actual translation text, not direction
+  // detect language from the actual text, not direction
   const isChinese = /[\u4e00-\u9fa5]/.test(text)
   utter.lang = isChinese ? 'zh-CN' : 'en-US'
 
   const voice = pickVoice(utter.lang)
   if (voice) utter.voice = voice
-  utter.rate = 1
+  utter.rate = rate
   utter.pitch = 1
   utter.volume = 1
 
   utter.onstart = () => {
-    isSpeaking.value = true
+    playingKey.value = key
     speakHint.value = ''
   }
   utter.onend = () => {
-    isSpeaking.value = false
+    playingKey.value = ''
     speakHint.value = ''
   }
   utter.onerror = (e) => {
-    isSpeaking.value = false
+    playingKey.value = ''
     const err = e?.error || '未知错误'
     if (err === 'not-allowed' || err === 'service-not-allowed') {
       speakHint.value = '浏览器拒绝了语音播放，请检查系统音频/语音权限'
@@ -171,7 +203,7 @@ function stopSpeak() {
   if ('speechSynthesis' in window) {
     window.speechSynthesis.cancel()
   }
-  isSpeaking.value = false
+  playingKey.value = ''
 }
 </script>
 
@@ -189,7 +221,10 @@ textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6p
 .result-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
 .result-label { font-size: 13px; color: #888; }
 .speak-btn { background: transparent; border: 1px solid #4a90d9; color: #4a90d9; padding: 3px 10px; border-radius: 4px; font-size: 12px; cursor: pointer; }
+.speak-btn:disabled { border-color: #ccc; color: #ccc; cursor: not-allowed; }
 .speak-btn.speaking { background: #4a90d9; color: white; }
+.speak-row { display: flex; gap: 8px; margin-bottom: 12px; }
+.speak-group { display: flex; gap: 6px; }
 .speak-hint { font-size: 12px; color: #e53935; margin-top: 6px; }
 .result-translation { font-size: 15px; line-height: 1.6; color: #333; margin-bottom: 12px; }
 .result-notes { font-size: 13px; color: #666; line-height: 1.5; background: #f9f9f9; padding: 8px 12px; border-radius: 6px; }
