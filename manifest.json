@@ -10,6 +10,12 @@
     "history",
     "alarms"
   ],
+  "host_permissions": [
+    "https://dashscope.aliyuncs.com/*",
+    "https://ark.cn-beijing.volces.com/*",
+    "https://open.bigmodel.cn/*",
+    "https://api.moonshot.cn/*"
+  ],
   "background": {
     "service_worker": "src/background/index.js",
     "type": "module"
