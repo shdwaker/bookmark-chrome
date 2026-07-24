@@ -10,15 +10,31 @@ export const DEFAULT_SETTINGS = {
   traceRetentionDays: 7,
   bookmarksPerPage: 20,
   defaultRootFolder: '',
-  excludedDomains: []
+  excludedDomains: [],
+  translate: {
+    defaultProvider: 'qwen',
+    providers: {
+      qwen:   { apiKey: '', model: 'qwen-max' },
+      doubao: { apiKey: '', model: '' },
+      glm:    { apiKey: '', model: 'glm-4' },
+      kimi:   { apiKey: '', model: 'moonshot-v1-8k' }
+    }
+  }
 }
 
 export function normalizeSettings(settings) {
-  return {
-    ...DEFAULT_SETTINGS,
-    ...(settings || {}),
-    excludedDomains: Array.isArray(settings?.excludedDomains) ? settings.excludedDomains : []
+  const defaults = { ...DEFAULT_SETTINGS }
+  const result = { ...defaults, ...(settings || {}) }
+  result.translate = {
+    ...defaults.translate,
+    ...(settings?.translate || {}),
+    providers: {
+      ...defaults.translate.providers,
+      ...(settings?.translate?.providers || {})
+    }
   }
+  result.excludedDomains = Array.isArray(settings?.excludedDomains) ? settings.excludedDomains : []
+  return result
 }
 
 // 获取存储数据
