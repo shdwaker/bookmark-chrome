@@ -92,6 +92,44 @@
         </div>
       </div>
 
+      <!-- AI 翻译 -->
+      <div class="settings-section">
+        <h2>AI 翻译</h2>
+        <p class="section-desc">配置大模型 API key，支持阿里千问、火山豆包、智谱 GLM、Kimi</p>
+        <div v-for="name in translateProviderNames" :key="name" class="setting-item">
+          <div class="setting-label">
+            <span>{{ translateProviderLabel(name) }}</span>
+            <span class="setting-desc">{{ translateProviderHint(name) }}</span>
+          </div>
+          <div class="translate-inputs">
+            <input
+              v-model="settings.translate.providers[name].apiKey"
+              type="password"
+              placeholder="API key"
+              @change="saveSettings"
+            >
+            <input
+              v-model="settings.translate.providers[name].model"
+              type="text"
+              :placeholder="translateModelPlaceholder(name)"
+              @change="saveSettings"
+            >
+            <button class="secondary-btn" @click="testConnection(name)">测试</button>
+          </div>
+        </div>
+        <div class="setting-item">
+          <div class="setting-label">
+            <span>默认模型</span>
+            <span class="setting-desc">打开翻译弹窗时默认使用的模型</span>
+          </div>
+          <select v-model="settings.translate.defaultProvider" @change="saveSettings">
+            <option v-for="name in translateProviderNames" :key="name" :value="name">
+              {{ translateProviderLabel(name) }}
+            </option>
+          </select>
+        </div>
+      </div>
+
       <!-- 数据管理 -->
       <div class="settings-section">
         <h2>数据管理</h2>
@@ -128,6 +166,8 @@ import { ref, onMounted, computed } from 'vue'
 import { useSettingsStore } from '@/stores/settings'
 import { useBookmarkStore } from '@/stores/bookmarks'
 import { clearAllRecords } from '@/utils/trace-manager'
+import { PROVIDERS } from '@/utils/translate/providers'
+import { translate as translateApi } from '@/utils/translate/translate-api'
 
 const settingsStore = useSettingsStore()
 const bookmarkStore = useBookmarkStore()
@@ -159,6 +199,39 @@ async function addDomain() {
 // 移除排除域名
 async function removeDomain(domain) {
   await settingsStore.removeExcludedDomain(domain)
+}
+
+const translateProviderNames = Object.keys(PROVIDERS)
+
+function translateProviderLabel(name) {
+  return PROVIDERS[name]?.label || name
+}
+
+function translateProviderHint(name) {
+  if (name === 'doubao') return '需要在火山方舟控制台创建 endpoint，model 填 endpoint id'
+  return ''
+}
+
+function translateModelPlaceholder(name) {
+  if (name === 'doubao') return 'endpoint id'
+  return PROVIDERS[name]?.defaultModel || '模型名'
+}
+
+async function testConnection(name) {
+  const cfg = settings.value.translate.providers[name]
+  if (!cfg.apiKey) { alert('请先填 API key'); return }
+  try {
+    await translateApi({
+      text: 'hi',
+      direction: 'auto',
+      provider: name,
+      apiKey: cfg.apiKey,
+      model: cfg.model
+    })
+    alert(`${translateProviderLabel(name)} 连接成功`)
+  } catch (err) {
+    alert(`${translateProviderLabel(name)} 连接失败：${err.message}`)
+  }
 }
 
 // 清除所有访问记录
