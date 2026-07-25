@@ -25,13 +25,20 @@ export const DEFAULT_SETTINGS = {
 export function normalizeSettings(settings) {
   const defaults = { ...DEFAULT_SETTINGS }
   const result = { ...defaults, ...(settings || {}) }
+  // deep-merge each provider config so new fields (e.g. endpoint) are preserved
+  const defaultProviders = defaults.translate.providers
+  const savedProviders = settings?.translate?.providers || {}
+  const mergedProviders = {}
+  for (const name of Object.keys(defaultProviders)) {
+    mergedProviders[name] = {
+      ...defaultProviders[name],
+      ...(savedProviders[name] || {})
+    }
+  }
   result.translate = {
     ...defaults.translate,
     ...(settings?.translate || {}),
-    providers: {
-      ...defaults.translate.providers,
-      ...(settings?.translate?.providers || {})
-    }
+    providers: mergedProviders
   }
   result.excludedDomains = Array.isArray(settings?.excludedDomains) ? settings.excludedDomains : []
   return result
