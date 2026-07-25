@@ -2,11 +2,11 @@ import { describe, expect, it } from 'vitest'
 import { PROVIDERS, getProvider, getProviderNames } from './providers'
 
 describe('PROVIDERS', () => {
-  it('has all four providers with label, endpoint, defaultModel', () => {
+  it('has all four providers with label, baseURL, defaultModel', () => {
     for (const name of ['qwen', 'doubao', 'glm', 'kimi']) {
       expect(PROVIDERS[name]).toBeDefined()
       expect(PROVIDERS[name].label).toBeTruthy()
-      expect(PROVIDERS[name].endpoint).toMatch(/^https:\/\//)
+      expect(PROVIDERS[name].baseURL).toMatch(/^https:\/\//)
       expect('defaultModel' in PROVIDERS[name]).toBe(true)
     }
   })
@@ -14,8 +14,8 @@ describe('PROVIDERS', () => {
 
 describe('getProvider', () => {
   it('returns config for known provider', () => {
-    expect(getProvider('qwen').endpoint)
-      .toBe('https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions')
+    expect(getProvider('qwen').baseURL)
+      .toBe('https://dashscope.aliyuncs.com/compatible-mode/v1')
   })
   it('throws for unknown provider', () => {
     expect(() => getProvider('unknown')).toThrow(/Unknown provider/)

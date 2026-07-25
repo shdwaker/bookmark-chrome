@@ -1,22 +1,22 @@
 export const PROVIDERS = {
   qwen: {
     label: '阿里千问',
-    endpoint: 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions',
+    baseURL: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
     defaultModel: 'qwen-max'
   },
   doubao: {
     label: '火山豆包',
-    endpoint: 'https://ark.cn-beijing.volces.com/api/v3/chat/completions',
+    baseURL: 'https://ark.cn-beijing.volces.com/api/v3',
     defaultModel: 'doubao-1.5-pro-32k-250115'
   },
   glm: {
     label: '智谱 GLM',
-    endpoint: 'https://open.bigmodel.cn/api/paas/v4/chat/completions',
+    baseURL: 'https://open.bigmodel.cn/api/paas/v4',
     defaultModel: 'glm-4'
   },
   kimi: {
     label: 'Kimi',
-    endpoint: 'https://api.moonshot.cn/v1/chat/completions',
+    baseURL: 'https://api.moonshot.cn/v1',
     defaultModel: 'moonshot-v1-8k'
   }
 }

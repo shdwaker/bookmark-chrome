@@ -122,7 +122,7 @@
               <option value="anthropic">Anthropic</option>
             </select>
             <input
-              v-model="settings.translate.providers[name].endpoint"
+              v-model="settings.translate.providers[name].baseURL"
               type="text"
               :placeholder="formatPlaceholder(name)"
               @change="saveSettings"
@@ -220,7 +220,7 @@ function translateProviderLabel(name) {
 }
 
 function translateProviderHint(name) {
-  if (name === 'doubao') return 'Coding plan 用户：格式选 Anthropic，接入地址填 https://ark.cn-beijing.volces.com/api/plan，model 填 glm-5.2 等'
+  if (name === 'doubao') return 'Coding plan 用户：格式选 Anthropic，Base URL 填 https://ark.cn-beijing.volces.com/api/plan，model 填 glm-5.2 等'
   return ''
 }
 
@@ -233,13 +233,13 @@ function formatPlaceholder(name) {
   if (fmt === 'anthropic') {
     return 'https://ark.cn-beijing.volces.com/api/plan'
   }
-  return PROVIDERS[name]?.endpoint || '接入地址'
+  return PROVIDERS[name]?.baseURL || 'Base URL'
 }
 
 async function testConnection(name) {
   const cfg = settings.value.translate.providers[name]
   if (!cfg.apiKey) { alert('请先填 API key'); return }
-  console.log('[translate] testing', name, 'model=', cfg.model, 'endpoint=', cfg.endpoint || '(default)', 'keyLength=', cfg.apiKey.length)
+  console.log('[translate] testing', name, 'model=', cfg.model, 'apiFormat=', cfg.apiFormat, 'baseURL=', cfg.baseURL || '(default)', 'keyLength=', cfg.apiKey.length)
   try {
     await translateApi({
       text: 'hi',
@@ -247,7 +247,7 @@ async function testConnection(name) {
       provider: name,
       apiKey: cfg.apiKey,
       model: cfg.model,
-      endpoint: cfg.endpoint,
+      baseURL: cfg.baseURL,
       apiFormat: cfg.apiFormat
     })
     alert(`${translateProviderLabel(name)} 连接成功`)

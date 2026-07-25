@@ -41,14 +41,18 @@ async function readErrorDetail(response) {
   }
 }
 
-// For Anthropic format, append /v1/messages to base URL if not already present
-function buildEndpoint(endpoint, format) {
-  const url = (endpoint || '').trim()
+// Build the full request URL from a base URL and API format.
+// OpenAI format  -> baseURL + /chat/completions
+// Anthropic      -> baseURL + /v1/messages
+// If the base URL already ends with the target path, use as-is.
+export function buildRequestURL(baseURL, format) {
+  const base = (baseURL || '').trim().replace(/\/+$/, '')
   if (format === 'anthropic') {
-    if (url.endsWith('/v1/messages')) return url
-    return url.replace(/\/+$/, '') + '/v1/messages'
+    if (base.endsWith('/v1/messages')) return base
+    return base + '/v1/messages'
   }
-  return url
+  if (base.endsWith('/chat/completions')) return base
+  return base + '/chat/completions'
 }
 
 function buildOpenAIRequest({ text, direction, model }) {
@@ -82,7 +86,7 @@ function parseAnthropicResponse(data) {
   return content
 }
 
-export async function translate({ text, direction, provider, apiKey, model, endpoint, apiFormat }) {
+export async function translate({ text, direction, provider, apiKey, model, baseURL, apiFormat }) {
   if (!text || !text.trim()) throw new Error('文本不能为空')
   if (!provider) throw new Error('未选择翻译模型')
 
@@ -90,13 +94,14 @@ export async function translate({ text, direction, provider, apiKey, model, endp
   if (!useApiKey) throw new Error('未配置 API key')
 
   const config = getProvider(provider)
-  const useEndpoint = buildEndpoint(endpoint || config.endpoint, apiFormat)
+  const format = apiFormat || 'openai'
+  const useBaseURL = (baseURL || '').trim() || config.baseURL
   const useModel = normalizeModel(model) || config.defaultModel
   if (!useModel) {
     throw new Error('未配置模型（豆包填模型名即可，如 doubao-1.5-pro-32k-250115）')
   }
 
-  const format = apiFormat || 'openai'
+  const useURL = buildRequestURL(useBaseURL, format)
 
   let body, headers
   if (format === 'anthropic') {
@@ -116,7 +121,7 @@ export async function translate({ text, direction, provider, apiKey, model, endp
 
   let response
   try {
-    response = await fetch(useEndpoint, {
+    response = await fetch(useURL, {
       method: 'POST',
       headers,
       body: JSON.stringify(body)

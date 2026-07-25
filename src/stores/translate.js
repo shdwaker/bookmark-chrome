@@ -29,7 +29,7 @@ export const useTranslateStore = defineStore('translate', () => {
         provider: useProvider,
         apiKey: providerConfig.apiKey,
         model: providerConfig.model,
-        endpoint: providerConfig.endpoint,
+        baseURL: providerConfig.baseURL,
         apiFormat: providerConfig.apiFormat
       })
     } catch (err) {

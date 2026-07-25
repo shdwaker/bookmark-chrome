@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
-import { translate, normalizeModel } from './translate-api'
+import { translate, normalizeModel, buildRequestURL } from './translate-api'
 
 function mockResponse(body, status = 200) {
   const bodyStr = typeof body === 'string' ? body : JSON.stringify(body)
@@ -162,7 +162,7 @@ describe('translate with Anthropic format', () => {
       provider: 'doubao',
       apiKey: 'ark-test',
       model: 'glm-5.2',
-      endpoint: 'https://ark.cn-beijing.volces.com/api/plan',
+      baseURL: 'https://ark.cn-beijing.volces.com/api/plan',
       apiFormat: 'anthropic'
     })
     const [url, opts] = globalThis.fetch.mock.calls[0]
@@ -187,7 +187,7 @@ describe('translate with Anthropic format', () => {
       provider: 'doubao',
       apiKey: 'ark-test',
       model: 'glm-5.2',
-      endpoint: 'https://ark.cn-beijing.volces.com/api/plan',
+      baseURL: 'https://ark.cn-beijing.volces.com/api/plan',
       apiFormat: 'anthropic'
     })
     expect(result).toEqual({ translation: 'hello', notes: 'greeting' })
@@ -203,7 +203,7 @@ describe('translate with Anthropic format', () => {
       provider: 'doubao',
       apiKey: 'k',
       model: 'glm-5.2',
-      endpoint: 'https://ark.cn-beijing.volces.com/api/plan/v1/messages',
+      baseURL: 'https://ark.cn-beijing.volces.com/api/plan/v1/messages',
       apiFormat: 'anthropic'
     })
     const url = globalThis.fetch.mock.calls[0][0]
@@ -239,5 +239,26 @@ describe('normalizeModel', () => {
   })
   it('trims whitespace', () => {
     expect(normalizeModel('  qwen-max  ')).toBe('qwen-max')
+  })
+})
+
+describe('buildRequestURL', () => {
+  it('appends /chat/completions for OpenAI format', () => {
+    expect(buildRequestURL('https://dashscope.aliyuncs.com/compatible-mode/v1', 'openai'))
+      .toBe('https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions')
+  })
+  it('appends /v1/messages for Anthropic format', () => {
+    expect(buildRequestURL('https://ark.cn-beijing.volces.com/api/plan', 'anthropic'))
+      .toBe('https://ark.cn-beijing.volces.com/api/plan/v1/messages')
+  })
+  it('does not double-append if URL already has the path', () => {
+    expect(buildRequestURL('https://ark.cn-beijing.volces.com/api/plan/v1/messages', 'anthropic'))
+      .toBe('https://ark.cn-beijing.volces.com/api/plan/v1/messages')
+    expect(buildRequestURL('https://api.moonshot.cn/v1/chat/completions', 'openai'))
+      .toBe('https://api.moonshot.cn/v1/chat/completions')
+  })
+  it('strips trailing slash', () => {
+    expect(buildRequestURL('https://api.moonshot.cn/v1/', 'openai'))
+      .toBe('https://api.moonshot.cn/v1/chat/completions')
   })
 })
