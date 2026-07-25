@@ -1,14 +1,18 @@
 <template>
   <div class="settings-container">
-    <div class="settings-header">
-      <h1>设置</h1>
-      <p>书签管理器配置</p>
-    </div>
-
-    <div class="settings-content">
-      <!-- 访问记录追踪 -->
-      <div class="settings-section">
-        <h2>访问记录追踪</h2>
+    <div class="settings-layout">
+      <div class="settings-nav-wrapper">
+        <nav class="settings-nav">
+          <a v-for="s in sections" :key="s.id" :class="{ active: activeSection === s.id }"
+             @click="scrollToSection(s.id)">{{ s.label }}</a>
+        </nav>
+        <div class="nav-divider"></div>
+        <button class="back-btn" @click="goBack">返回 MarkTrace</button>
+      </div>
+      <div class="settings-content">
+        <!-- 访问记录追踪 -->
+        <div class="settings-section" id="trace">
+          <h2>访问记录追踪</h2>
         <div class="setting-item">
           <div class="setting-label">
             <span>启用访问记录追踪</span>
@@ -35,7 +39,7 @@
       </div>
 
       <!-- 书签显示 -->
-      <div class="settings-section">
+      <div class="settings-section" id="display">
         <h2>书签显示</h2>
         <div class="setting-item">
           <div class="setting-label">
@@ -64,7 +68,7 @@
       </div>
 
       <!-- 排除域名 -->
-      <div class="settings-section">
+      <div class="settings-section" id="domains">
         <h2>排除域名</h2>
         <p class="section-desc">以下域名的访问将不会被记录</p>
         <div class="domain-list">
@@ -93,7 +97,7 @@
       </div>
 
       <!-- AI 翻译 -->
-      <div class="settings-section">
+      <div class="settings-section" id="translate">
         <h2>AI 翻译</h2>
         <p class="section-desc">配置大模型 API key，支持阿里千问、火山豆包、智谱 GLM、Kimi</p>
         <div v-for="name in translateProviderNames" :key="name" class="setting-item translate-provider-row">
@@ -114,7 +118,7 @@
               :placeholder="translateModelPlaceholder(name)"
               @change="saveSettings"
             >
-            <button class="secondary-btn test-btn" @click="testConnection(name)">测试</button>
+            <button class="add-btn test-btn" @click="testConnection(name)">测试</button>
           </div>
           <div class="translate-endpoint">
             <select v-model="settings.translate.providers[name].apiFormat" @change="saveSettings" class="format-select">
@@ -140,10 +144,100 @@
             </option>
           </select>
         </div>
+
+        <h3 class="subsection-title">交互方式</h3>
+        <div class="setting-item">
+          <div class="setting-label">
+            <span>触发方式</span>
+            <span class="setting-desc">选中网页文本后的交互方式（二选一）</span>
+          </div>
+          <select v-model="settings.translate.interactionMode" @change="saveSettings">
+            <option value="selection">选中文本时显示按钮</option>
+            <option value="contextmenu">右键菜单</option>
+          </select>
+        </div>
+
+        <h3 class="subsection-title">语音设置</h3>
+        <div class="setting-item">
+          <div class="setting-label">
+            <span>中文朗读语音</span>
+            <span class="setting-desc">朗读中文时使用的语音，留空则自动选择</span>
+          </div>
+          <div class="voice-row">
+            <select v-model="settings.translate.voiceChinese" @change="saveSettings">
+              <option value="">默认（自动选择）</option>
+              <option v-for="v in chineseVoices" :key="v.voiceURI" :value="v.voiceURI">
+                {{ voiceLabel(v) }}
+              </option>
+            </select>
+            <button class="add-btn test-btn" @click="testVoice('zh')">测试</button>
+          </div>
+        </div>
+        <div class="setting-item">
+          <div class="setting-label">
+            <span>英文朗读语音</span>
+            <span class="setting-desc">朗读英文时使用的语音，留空则自动选择</span>
+          </div>
+          <div class="voice-row">
+            <select v-model="settings.translate.voiceEnglish" @change="saveSettings">
+              <option value="">默认（自动选择）</option>
+              <option v-for="v in englishVoices" :key="v.voiceURI" :value="v.voiceURI">
+                {{ voiceLabel(v) }}
+              </option>
+            </select>
+            <button class="add-btn test-btn" @click="testVoice('en')">测试</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 时钟显示 -->
+      <div class="settings-section" id="clock">
+        <h2>时钟显示</h2>
+        <p class="section-desc">配置页签标题栏时钟的显示组件</p>
+        <div class="setting-item">
+          <div class="setting-label">
+            <span>显示星期</span>
+            <span class="setting-desc">在时间后显示星期几</span>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" v-model="settings.clock.showWeekday" @change="saveSettings">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="setting-item">
+          <div class="setting-label">
+            <span>显示农历</span>
+            <span class="setting-desc">显示农历日期，如 农历:六月初十</span>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" v-model="settings.clock.showLunar" @change="saveSettings">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="setting-item">
+          <div class="setting-label">
+            <span>显示秒</span>
+            <span class="setting-desc">显示秒数，每秒更新</span>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" v-model="settings.clock.showSeconds" @change="saveSettings">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="setting-item">
+          <div class="setting-label">
+            <span>显示毫秒</span>
+            <span class="setting-desc">显示毫秒数，更新频率为 10ms</span>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" v-model="settings.clock.showMilliseconds" @change="saveSettings">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
       </div>
 
       <!-- 数据管理 -->
-      <div class="settings-section">
+      <div class="settings-section" id="data">
         <h2>数据管理</h2>
         <div class="setting-item">
           <div class="setting-label">
@@ -155,7 +249,7 @@
       </div>
 
       <!-- 重置 -->
-      <div class="settings-section">
+      <div class="settings-section" id="reset">
         <h2>重置</h2>
         <div class="setting-item">
           <div class="setting-label">
@@ -165,10 +259,7 @@
           <button class="secondary-btn" @click="resetAllSettings">重置</button>
         </div>
       </div>
-    </div>
-
-    <div class="settings-footer">
-      <button class="back-btn" @click="goBack">返回书签管理</button>
+      </div>
     </div>
   </div>
 </template>
@@ -188,15 +279,74 @@ const settings = computed(() => settingsStore.settings)
 const rootFolders = computed(() => bookmarkStore.rootFolders)
 
 const newDomain = ref('')
+const voices = ref([])
+
+const chineseVoices = computed(() => voices.value.filter(v => v.lang && v.lang.toLowerCase().startsWith('zh')))
+const englishVoices = computed(() => voices.value.filter(v => v.lang && v.lang.toLowerCase().startsWith('en')))
+
+function voiceLabel(v) {
+  return `${v.name} (${v.lang})`
+}
+
+function loadVoices() {
+  if (!('speechSynthesis' in window)) return
+  voices.value = window.speechSynthesis.getVoices()
+}
 
 onMounted(async () => {
   await settingsStore.init()
   await bookmarkStore.init()
+  loadVoices()
+  if ('speechSynthesis' in window) {
+    window.speechSynthesis.onvoiceschanged = loadVoices
+  }
+  // Scroll spy
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(e => { if (e.isIntersecting) activeSection.value = e.target.id })
+  }, { rootMargin: '-10% 0px -80% 0px' })
+  document.querySelectorAll('.settings-section').forEach(s => observer.observe(s))
 })
+
+const sections = [
+  { id: 'trace', label: '访问记录追踪' },
+  { id: 'display', label: '书签显示' },
+  { id: 'domains', label: '排除域名' },
+  { id: 'translate', label: 'AI 翻译' },
+  { id: 'clock', label: '时钟显示' },
+  { id: 'data', label: '数据管理' },
+  { id: 'reset', label: '重置' }
+]
+const activeSection = ref('trace')
+
+function scrollToSection(id) {
+  document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
 
 // 保存设置
 async function saveSettings() {
   await settingsStore.updateSettings(settings.value)
+}
+
+// 测试语音
+function testVoice(lang) {
+  if (!('speechSynthesis' in window)) {
+    alert('当前浏览器不支持语音合成')
+    return
+  }
+  const text = lang === 'zh' ? '你好' : 'hello'
+  const voiceURI = lang === 'zh'
+    ? settings.value.translate.voiceChinese
+    : settings.value.translate.voiceEnglish
+  const synth = window.speechSynthesis
+  synth.cancel()
+  const utter = new SpeechSynthesisUtterance(text)
+  utter.lang = lang === 'zh' ? 'zh-CN' : 'en-US'
+  if (voiceURI) {
+    const v = voices.value.find(v => v.voiceURI === voiceURI)
+    if (v) utter.voice = v
+  }
+  utter.rate = 1
+  synth.speak(utter)
 }
 
 // 添加排除域名

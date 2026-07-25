@@ -15,6 +15,7 @@
             </span>
           </div>
         </div>
+        <div class="header-center clock-display" ref="clockRef"></div>
         <div class="header-right">
           <button
             v-if="viewData"
@@ -130,8 +131,10 @@
 </template>
 
 <script setup>
-import { computed, ref, onMounted } from 'vue'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { queryAllTabs, buildAllTabsView, focusTab, closeTabs } from '@/utils/tabs-manager'
+import { getSettings } from '@/utils/storage'
+import { getLunarString } from '@/utils/lunar'
 
 const VISIBLE_LIMIT = 8
 
@@ -141,6 +144,34 @@ const actionError = ref('')
 const viewData = ref(null)
 const expandedCards = ref(new Set())
 const showBulkConfirm = ref(false)
+
+// 时钟
+const clockRef = ref(null)
+let clockInterval = null
+const WEEKDAYS = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六']
+
+function formatClock(clock) {
+  const now = new Date()
+  const y = now.getFullYear()
+  const m = String(now.getMonth() + 1).padStart(2, '0')
+  const d = String(now.getDate()).padStart(2, '0')
+  const h = String(now.getHours()).padStart(2, '0')
+  const min = String(now.getMinutes()).padStart(2, '0')
+  let str = `${y}-${m}-${d} ${h}:${min}`
+  if (clock.showSeconds) str += `:${String(now.getSeconds()).padStart(2, '0')}`
+  if (clock.showMilliseconds) str += `.${String(now.getMilliseconds()).padStart(3, '0')}`
+  if (clock.showWeekday) str += ` ${WEEKDAYS[now.getDay()]}`
+  if (clock.showLunar) str += ` ${getLunarString(now)}`
+  return str
+}
+
+function startClock(clock) {
+  clearInterval(clockInterval)
+  const interval = clock.showMilliseconds ? 10 : 1000
+  const update = () => { if (clockRef.value) clockRef.value.textContent = formatClock(clock) }
+  update()
+  clockInterval = setInterval(update, interval)
+}
 
 const domainColumns = computed(() => {
   const groups = viewData.value?.groups || []
@@ -301,8 +332,18 @@ async function handleBulkClear() {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
   refreshTabs()
+  const settings = await getSettings()
+  startClock(settings.clock)
+  chrome.storage.onChanged.addListener((changes) => {
+    const newClock = changes.settings?.newValue?.clock
+    if (newClock) startClock(newClock)
+  })
+})
+
+onUnmounted(() => {
+  clearInterval(clockInterval)
 })
 </script>
 
@@ -328,6 +369,7 @@ onMounted(() => {
 }
 
 .all-tabs-panel-header {
+  position: relative;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -344,6 +386,7 @@ onMounted(() => {
   align-items: center;
   gap: 16px;
   min-width: 0;
+  z-index: 1;
 }
 
 .header-right {
@@ -351,6 +394,24 @@ onMounted(() => {
   align-items: center;
   gap: 8px;
   flex-shrink: 0;
+  z-index: 1;
+}
+
+.header-center.clock-display {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  font-family: 'SF Mono', 'Menlo', monospace;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink);
+  background: var(--accent-light);
+  padding: 6px 16px;
+  border-radius: 20px;
+  white-space: nowrap;
+  letter-spacing: 0.5px;
+  pointer-events: none;
 }
 
 .stats-info {

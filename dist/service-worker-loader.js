@@ -1,1 +1,1 @@
-import './assets/index.js-BepVt-js.js';
+import './assets/index.js-DwD-I1eR.js';

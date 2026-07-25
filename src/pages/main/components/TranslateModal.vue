@@ -96,6 +96,7 @@ const direction = ref('auto')
 const configuredProviders = ref([])
 const playingKey = ref('')
 const speakHint = ref('')
+const voiceSettings = ref({ voiceChinese: '', voiceEnglish: '' })
 let voices = []
 
 function loadVoices() {
@@ -107,6 +108,10 @@ onMounted(async () => {
   const settings = await getSettings()
   provider.value = store.provider || settings.translate.defaultProvider
   direction.value = store.direction
+  voiceSettings.value = {
+    voiceChinese: settings.translate.voiceChinese || '',
+    voiceEnglish: settings.translate.voiceEnglish || ''
+  }
   const withKeys = Object.keys(settings.translate.providers).filter(
     name => settings.translate.providers[name].apiKey
   )
@@ -134,6 +139,13 @@ async function handleTranslate() {
 }
 
 function pickVoice(lang) {
+  // 0. use user-configured voice if set
+  const isChinese = lang.startsWith('zh')
+  const configuredURI = isChinese ? voiceSettings.value.voiceChinese : voiceSettings.value.voiceEnglish
+  if (configuredURI) {
+    const v = voices.find(v => v.voiceURI === configuredURI)
+    if (v) return v
+  }
   // 1. exact match (zh-CN == zh-CN)
   let v = voices.find(v => v.lang === lang)
   if (v) return v

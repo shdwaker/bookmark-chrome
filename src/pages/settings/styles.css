@@ -13,25 +13,9 @@ body {
 }
 
 .settings-container {
-  max-width: 800px;
+  max-width: 1000px;
   margin: 0 auto;
-  padding: 40px 20px;
-}
-
-.settings-header {
-  margin-bottom: 40px;
-}
-
-.settings-header h1 {
-  font-size: 28px;
-  font-weight: 600;
-  color: #333;
-  margin-bottom: 8px;
-}
-
-.settings-header p {
-  font-size: 14px;
-  color: #666;
+  padding: 20px 20px 40px;
 }
 
 .settings-section {
@@ -40,6 +24,63 @@ body {
   padding: 24px;
   margin-bottom: 20px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  scroll-margin-top: 20px;
+}
+
+.settings-layout {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+}
+
+.settings-nav-wrapper {
+  position: sticky;
+  top: 20px;
+  width: 140px;
+  flex-shrink: 0;
+  background: white;
+  border-radius: 12px;
+  padding: 12px 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  display: flex;
+  flex-direction: column;
+}
+
+.settings-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.nav-divider {
+  height: 1px;
+  background: #e0e0e0;
+  margin: 12px 4px;
+}
+
+.settings-nav a {
+  display: block;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #666;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.settings-nav a:hover {
+  background: #f0f4ff;
+  color: #333;
+}
+
+.settings-nav a.active {
+  background: #4a90d9;
+  color: white;
+}
+
+.settings-content {
+  flex: 1;
+  min-width: 0;
 }
 
 .settings-section h2 {
@@ -49,6 +90,15 @@ body {
   margin-bottom: 20px;
   padding-bottom: 12px;
   border-bottom: 1px solid #e0e0e0;
+}
+
+.subsection-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #555;
+  margin: 20px 0 12px 0;
+  padding-top: 12px;
+  border-top: 1px solid #f0f0f0;
 }
 
 .section-desc {
@@ -257,18 +307,14 @@ select:focus {
   background: #e0e0e0;
 }
 
-.settings-footer {
-  margin-top: 40px;
-  text-align: center;
-}
-
 .back-btn {
-  padding: 12px 32px;
+  width: 100%;
+  padding: 10px 14px;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
   border: none;
   border-radius: 8px;
-  font-size: 14px;
+  font-size: 13px;
   cursor: pointer;
   transition: all 0.2s;
 }
@@ -311,6 +357,18 @@ select:focus {
   border-color: #667eea;
 }
 .translate-inputs .test-btn {
+  flex: 0 0 auto;
+}
+.voice-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.voice-row select {
+  flex: 1;
+  min-width: 0;
+}
+.voice-row .test-btn {
   flex: 0 0 auto;
 }
 .translate-endpoint {

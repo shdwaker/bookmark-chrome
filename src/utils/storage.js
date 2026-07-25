@@ -13,12 +13,21 @@ export const DEFAULT_SETTINGS = {
   excludedDomains: [],
   translate: {
     defaultProvider: 'qwen',
+    interactionMode: 'selection',
+    voiceChinese: '',
+    voiceEnglish: '',
     providers: {
       qwen:   { apiKey: '', model: 'qwen-max', baseURL: '', apiFormat: 'openai' },
       doubao: { apiKey: '', model: 'doubao-1.5-pro-32k-250115', baseURL: '', apiFormat: 'openai' },
       glm:    { apiKey: '', model: 'glm-4', baseURL: '', apiFormat: 'openai' },
       kimi:   { apiKey: '', model: 'moonshot-v1-8k', baseURL: '', apiFormat: 'openai' }
     }
+  },
+  clock: {
+    showWeekday: true,
+    showLunar: false,
+    showSeconds: false,
+    showMilliseconds: false
   }
 }
 
@@ -40,6 +49,7 @@ export function normalizeSettings(settings) {
     ...(settings?.translate || {}),
     providers: mergedProviders
   }
+  result.clock = { ...defaults.clock, ...(settings?.clock || {}) }
   result.excludedDomains = Array.isArray(settings?.excludedDomains) ? settings.excludedDomains : []
   return result
 }

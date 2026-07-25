@@ -1,5 +1,6 @@
 import { getProvider } from './providers'
 import { buildSystemPrompt, buildUserPrompt } from './prompt'
+import { doFetch } from './transport'
 
 // Accept either a plain model/endpoint id (e.g. "qwen-max", "ep-2024xxx")
 // or a full URL (e.g. "https://ark.cn-beijing.volces.com/api/v3/chat/completions?model=ep-xxx")
@@ -121,7 +122,7 @@ export async function translate({ text, direction, provider, apiKey, model, base
 
   let response
   try {
-    response = await fetch(useURL, {
+    response = await doFetch(useURL, {
       method: 'POST',
       headers,
       body: JSON.stringify(body)

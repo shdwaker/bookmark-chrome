@@ -1,7 +1,7 @@
 {
-  "name": "bookmark-manager-chrome",
+  "name": "marktrace",
   "version": "1.0.0",
-  "description": "A powerful Chrome bookmark manager extension with tag system, search, and visit tracking",
+  "description": "MarkTrace - Chrome extension combining bookmark management, visit tracking, AI translation, TTS, and tab cleanup in the new tab page",
   "author": "shdwaker",
   "license": "MIT",
   "type": "module",
@@ -11,8 +11,11 @@
   },
   "keywords": [
     "chrome-extension",
+    "marktrace",
     "bookmark",
     "bookmark-manager",
+    "visit-tracking",
+    "ai-translation",
     "vue3",
     "vite"
   ],

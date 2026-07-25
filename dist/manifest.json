@@ -1,8 +1,14 @@
 {
   "manifest_version": 3,
-  "name": "书签管理器",
+  "name": "MarkTrace",
   "version": "1.0.0",
-  "description": "功能强大的Chrome书签管理插件，支持书签同步、访问记录追踪等功能",
+  "description": "书签管理 + 访问留痕 + AI翻译 + 页签清理，替换 Chrome 新标签页，打造高效浏览工作区",
+  "icons": {
+    "16": "public/icons/icon16.png",
+    "32": "public/icons/icon32.png",
+    "48": "public/icons/icon48.png",
+    "128": "public/icons/icon128.png"
+  },
   "permissions": [
     "bookmarks",
     "storage",
@@ -10,6 +16,13 @@
     "history",
     "alarms"
   ],
+  "action": {
+    "default_title": "打开 MarkTrace",
+    "default_icon": {
+      "16": "public/icons/icon16.png",
+      "32": "public/icons/icon32.png"
+    }
+  },
   "host_permissions": [
     "https://dashscope.aliyuncs.com/*",
     "https://ark.cn-beijing.volces.com/*",
@@ -20,9 +33,17 @@
     "service_worker": "service-worker-loader.js",
     "type": "module"
   },
-  "action": {
-    "default_title": "打开书签管理器"
-  },
+  "content_scripts": [
+    {
+      "js": [
+        "assets/translate-panel.js-BfOwjpVV.js"
+      ],
+      "matches": [
+        "<all_urls>"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
   "chrome_url_overrides": {
     "newtab": "src/pages/main/index.html"
   },
@@ -33,7 +54,8 @@
       ],
       "resources": [
         "src/pages/main/index.html",
-        "src/pages/settings/index.html"
+        "src/pages/settings/index.html",
+        "assets/translate-panel.js-BfOwjpVV.js"
       ],
       "use_dynamic_url": false
     }

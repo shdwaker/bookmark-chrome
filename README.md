@@ -1,6 +1,6 @@
-# Bookmark Manager
+# MarkTrace
 
-A Chrome extension that combines bookmark management, tags, visit tracing, and an all-tabs overview into the new-tab page. Replaces Chrome's default new tab with a powerful bookmark workspace.
+A Chrome extension that combines bookmark management, visit tracing, AI translation, TTS, and an all-tabs overview into the new-tab page. Replaces Chrome's default new tab with a powerful browsing workspace.
 
 English | [简体中文](README.zh-CN.md)
 

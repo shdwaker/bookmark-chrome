@@ -111,6 +111,10 @@ body {
   color: #667eea;
 }
 
+.nav-action-btn.icon-only {
+  padding: 8px 10px;
+}
+
 /* 主内容区 */
 .main-content {
   display: flex;
