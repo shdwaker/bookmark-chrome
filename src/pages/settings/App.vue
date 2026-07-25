@@ -116,14 +116,14 @@
             >
             <button class="secondary-btn test-btn" @click="testConnection(name)">测试</button>
           </div>
-          <div v-if="name === 'doubao'" class="translate-endpoint">
+          <div class="translate-endpoint">
+            <span class="endpoint-label">接入地址</span>
             <input
               v-model="settings.translate.providers[name].endpoint"
               type="text"
               :placeholder="PROVIDERS[name].endpoint"
               @change="saveSettings"
             >
-            <span class="endpoint-hint">接入地址（留空用默认；Coding plan 填 https://ark.cn-beijing.volces.com/api/plan）</span>
           </div>
         </div>
         <div class="setting-item">
@@ -217,7 +217,7 @@ function translateProviderLabel(name) {
 }
 
 function translateProviderHint(name) {
-  if (name === 'doubao') return '在火山方舟控制台「API Key 管理」页面创建 API Key。默认走 /api/v3/chat/completions；Coding plan 用户在下方「接入地址」填 /api/plan'
+  if (name === 'doubao') return '在火山方舟控制台「API Key 管理」页面创建 API Key。如使用 Coding plan，在下方接入地址填 /api/plan 对应地址'
   return ''
 }
 

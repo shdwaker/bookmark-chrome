@@ -312,26 +312,28 @@ select:focus {
 }
 .translate-inputs .test-btn {
   flex: 0 0 auto;
-  min-width: 72px;
-  padding: 10px 16px;
 }
 .translate-endpoint {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  gap: 8px;
+  align-items: center;
+}
+.endpoint-label {
+  font-size: 13px;
+  color: #888;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 .translate-endpoint input[type="text"] {
+  flex: 1;
   padding: 10px 14px;
   border: 1px solid #e0e0e0;
   border-radius: 8px;
   font-size: 13px;
   font-family: monospace;
+  min-width: 0;
 }
 .translate-endpoint input[type="text"]:focus {
   outline: none;
   border-color: #667eea;
-}
-.endpoint-hint {
-  font-size: 12px;
-  color: #888;
 }
