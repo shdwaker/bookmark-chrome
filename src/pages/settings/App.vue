@@ -208,7 +208,7 @@ function translateProviderLabel(name) {
 }
 
 function translateProviderHint(name) {
-  if (name === 'doubao') return '使用 API key 直连，填模型名即可（如 doubao-1.5-pro-32k-250115），无需创建接入点'
+  if (name === 'doubao') return '在火山方舟控制台「API Key 管理」页面创建 API Key（不是 Volcengine Access Key），填模型名即可，无需创建接入点'
   return ''
 }
 
@@ -219,6 +219,7 @@ function translateModelPlaceholder(name) {
 async function testConnection(name) {
   const cfg = settings.value.translate.providers[name]
   if (!cfg.apiKey) { alert('请先填 API key'); return }
+  console.log('[translate] testing', name, 'model=', cfg.model, 'keyLength=', cfg.apiKey.length)
   try {
     await translateApi({
       text: 'hi',
@@ -229,6 +230,7 @@ async function testConnection(name) {
     })
     alert(`${translateProviderLabel(name)} 连接成功`)
   } catch (err) {
+    console.error('[translate] test failed for', name, err)
     alert(`${translateProviderLabel(name)} 连接失败：${err.message}`)
   }
 }

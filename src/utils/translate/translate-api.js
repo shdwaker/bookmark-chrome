@@ -44,7 +44,10 @@ async function readErrorDetail(response) {
 export async function translate({ text, direction, provider, apiKey, model }) {
   if (!text || !text.trim()) throw new Error('文本不能为空')
   if (!provider) throw new Error('未选择翻译模型')
-  if (!apiKey) throw new Error('未配置 API key')
+
+  // trim key/model: copy-paste from consoles often carries stray whitespace
+  const useApiKey = (apiKey || '').trim()
+  if (!useApiKey) throw new Error('未配置 API key')
 
   const config = getProvider(provider)
   const useModel = normalizeModel(model) || config.defaultModel
@@ -65,7 +68,7 @@ export async function translate({ text, direction, provider, apiKey, model }) {
     response = await fetch(config.endpoint, {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${apiKey}`,
+        Authorization: `Bearer ${useApiKey}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify(body)
