@@ -7,7 +7,7 @@ export const PROVIDERS = {
   doubao: {
     label: '火山豆包',
     endpoint: 'https://ark.cn-beijing.volces.com/api/v3/chat/completions',
-    defaultModel: ''
+    defaultModel: 'doubao-1.5-pro-32k-250115'
   },
   glm: {
     label: '智谱 GLM',

@@ -96,10 +96,19 @@ describe('translate', () => {
     })).rejects.toThrow(/文本不能为空/)
   })
 
-  it('throws when doubao has no model (endpoint id) configured', async () => {
-    await expect(translate({
-      text: 'hi', direction: 'auto', provider: 'doubao', apiKey: 'k', model: ''
-    })).rejects.toThrow(/模型/)
+  it('falls back to doubao defaultModel when model is empty', async () => {
+    globalThis.fetch.mockResolvedValue(mockResponse({
+      choices: [{ message: { content: '{"translation":"hi","notes":""}' } }]
+    }))
+    await translate({
+      text: '你好',
+      direction: 'auto',
+      provider: 'doubao',
+      apiKey: 'k',
+      model: ''
+    })
+    const body = JSON.parse(globalThis.fetch.mock.calls[0][1].body)
+    expect(body.model).toBe('doubao-1.5-pro-32k-250115')
   })
 
   it('includes response body detail in non-OK error message', async () => {

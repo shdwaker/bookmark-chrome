@@ -49,7 +49,7 @@ export async function translate({ text, direction, provider, apiKey, model }) {
   const config = getProvider(provider)
   const useModel = normalizeModel(model) || config.defaultModel
   if (!useModel) {
-    throw new Error('未配置模型（豆包需要填 endpoint id 或模型名，如 ep-2024xxx 或 doubao-1.5-pro-32k）')
+    throw new Error('未配置模型（豆包填模型名即可，如 doubao-1.5-pro-32k-250115）')
   }
 
   const body = {

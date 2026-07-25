@@ -15,7 +15,7 @@ export const DEFAULT_SETTINGS = {
     defaultProvider: 'qwen',
     providers: {
       qwen:   { apiKey: '', model: 'qwen-max' },
-      doubao: { apiKey: '', model: '' },
+      doubao: { apiKey: '', model: 'doubao-1.5-pro-32k-250115' },
       glm:    { apiKey: '', model: 'glm-4' },
       kimi:   { apiKey: '', model: 'moonshot-v1-8k' }
     }

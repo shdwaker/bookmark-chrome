@@ -208,12 +208,11 @@ function translateProviderLabel(name) {
 }
 
 function translateProviderHint(name) {
-  if (name === 'doubao') return '在火山方舟控制台创建推理接入点，model 填 endpoint id（如 ep-2024xxx）或模型名（如 doubao-1.5-pro-32k）。也可粘贴包含 model 的完整 URL'
+  if (name === 'doubao') return '使用 API key 直连，填模型名即可（如 doubao-1.5-pro-32k-250115），无需创建接入点'
   return ''
 }
 
 function translateModelPlaceholder(name) {
-  if (name === 'doubao') return 'endpoint id 或模型名'
   return PROVIDERS[name]?.defaultModel || '模型名'
 }
 
