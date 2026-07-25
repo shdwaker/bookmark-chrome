@@ -75,3 +75,28 @@ describe('normalizeSettings clock deep-merge', () => {
     expect(result.clock.showLunar).toBe(false)
   })
 })
+
+describe('DEFAULT_SETTINGS.onetab', () => {
+  it('defaults tabAgeDays to 7', () => {
+    expect(DEFAULT_SETTINGS.onetab.tabAgeDays).toBe(7)
+  })
+})
+
+describe('normalizeSettings onetab merge', () => {
+  it('preserves saved tabAgeDays', () => {
+    const result = normalizeSettings({ onetab: { tabAgeDays: 30 } })
+    expect(result.onetab.tabAgeDays).toBe(30)
+  })
+  it('fills default when onetab block missing', () => {
+    const result = normalizeSettings({})
+    expect(result.onetab.tabAgeDays).toBe(7)
+  })
+  it('falls back to default when tabAgeDays is not a positive number', () => {
+    const result = normalizeSettings({ onetab: { tabAgeDays: 'bad' } })
+    expect(result.onetab.tabAgeDays).toBe(7)
+    const result2 = normalizeSettings({ onetab: { tabAgeDays: 0 } })
+    expect(result2.onetab.tabAgeDays).toBe(7)
+    const result3 = normalizeSettings({ onetab: { tabAgeDays: -5 } })
+    expect(result3.onetab.tabAgeDays).toBe(7)
+  })
+})

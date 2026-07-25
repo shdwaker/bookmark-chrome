@@ -28,6 +28,9 @@ export const DEFAULT_SETTINGS = {
     showLunar: false,
     showSeconds: false,
     showMilliseconds: false
+  },
+  onetab: {
+    tabAgeDays: 7
   }
 }
 
@@ -51,6 +54,10 @@ export function normalizeSettings(settings) {
   }
   result.clock = { ...defaults.clock, ...(settings?.clock || {}) }
   result.excludedDomains = Array.isArray(settings?.excludedDomains) ? settings.excludedDomains : []
+  const savedTabAgeDays = Number(settings?.onetab?.tabAgeDays)
+  result.onetab = {
+    tabAgeDays: Number.isFinite(savedTabAgeDays) && savedTabAgeDays > 0 ? savedTabAgeDays : defaults.onetab.tabAgeDays
+  }
   return result
 }
 
