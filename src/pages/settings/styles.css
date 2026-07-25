@@ -318,11 +318,14 @@ select:focus {
   gap: 8px;
   align-items: center;
 }
-.endpoint-label {
-  font-size: 13px;
-  color: #888;
-  white-space: nowrap;
+.translate-endpoint .format-select {
   flex-shrink: 0;
+  padding: 8px 10px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 13px;
+  background: white;
+  cursor: pointer;
 }
 .translate-endpoint input[type="text"] {
   flex: 1;

@@ -117,11 +117,14 @@
             <button class="secondary-btn test-btn" @click="testConnection(name)">测试</button>
           </div>
           <div class="translate-endpoint">
-            <span class="endpoint-label">接入地址</span>
+            <select v-model="settings.translate.providers[name].apiFormat" @change="saveSettings" class="format-select">
+              <option value="openai">OpenAI</option>
+              <option value="anthropic">Anthropic</option>
+            </select>
             <input
               v-model="settings.translate.providers[name].endpoint"
               type="text"
-              :placeholder="PROVIDERS[name].endpoint"
+              :placeholder="formatPlaceholder(name)"
               @change="saveSettings"
             >
           </div>
@@ -217,12 +220,20 @@ function translateProviderLabel(name) {
 }
 
 function translateProviderHint(name) {
-  if (name === 'doubao') return '在火山方舟控制台「API Key 管理」页面创建 API Key。如使用 Coding plan，在下方接入地址填 /api/plan 对应地址'
+  if (name === 'doubao') return 'Coding plan 用户：格式选 Anthropic，接入地址填 https://ark.cn-beijing.volces.com/api/plan，model 填 glm-5.2 等'
   return ''
 }
 
 function translateModelPlaceholder(name) {
   return PROVIDERS[name]?.defaultModel || '模型名'
+}
+
+function formatPlaceholder(name) {
+  const fmt = settings.value.translate.providers[name].apiFormat
+  if (fmt === 'anthropic') {
+    return 'https://ark.cn-beijing.volces.com/api/plan'
+  }
+  return PROVIDERS[name]?.endpoint || '接入地址'
 }
 
 async function testConnection(name) {
@@ -236,7 +247,8 @@ async function testConnection(name) {
       provider: name,
       apiKey: cfg.apiKey,
       model: cfg.model,
-      endpoint: cfg.endpoint
+      endpoint: cfg.endpoint,
+      apiFormat: cfg.apiFormat
     })
     alert(`${translateProviderLabel(name)} 连接成功`)
   } catch (err) {

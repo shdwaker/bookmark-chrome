@@ -151,6 +151,66 @@ describe('translate', () => {
   })
 })
 
+describe('translate with Anthropic format', () => {
+  it('sends x-api-key header and /v1/messages endpoint', async () => {
+    globalThis.fetch.mockResolvedValue(mockResponse({
+      content: [{ type: 'text', text: '{"translation":"hello","notes":"hi"}' }]
+    }))
+    await translate({
+      text: '你好',
+      direction: 'zh-en',
+      provider: 'doubao',
+      apiKey: 'ark-test',
+      model: 'glm-5.2',
+      endpoint: 'https://ark.cn-beijing.volces.com/api/plan',
+      apiFormat: 'anthropic'
+    })
+    const [url, opts] = globalThis.fetch.mock.calls[0]
+    expect(url).toBe('https://ark.cn-beijing.volces.com/api/plan/v1/messages')
+    expect(opts.headers['x-api-key']).toBe('ark-test')
+    expect(opts.headers['anthropic-version']).toBe('2023-06-01')
+    expect(opts.headers.Authorization).toBeUndefined()
+    const body = JSON.parse(opts.body)
+    expect(body.model).toBe('glm-5.2')
+    expect(body.system).toBeTruthy()
+    expect(body.messages[0].role).toBe('user')
+    expect(body.max_tokens).toBe(1024)
+  })
+
+  it('parses Anthropic response format', async () => {
+    globalThis.fetch.mockResolvedValue(mockResponse({
+      content: [{ type: 'text', text: '{"translation":"hello","notes":"greeting"}' }]
+    }))
+    const result = await translate({
+      text: '你好',
+      direction: 'auto',
+      provider: 'doubao',
+      apiKey: 'ark-test',
+      model: 'glm-5.2',
+      endpoint: 'https://ark.cn-beijing.volces.com/api/plan',
+      apiFormat: 'anthropic'
+    })
+    expect(result).toEqual({ translation: 'hello', notes: 'greeting' })
+  })
+
+  it('does not double-append /v1/messages if already present', async () => {
+    globalThis.fetch.mockResolvedValue(mockResponse({
+      content: [{ type: 'text', text: '{"translation":"hi","notes":""}' }]
+    }))
+    await translate({
+      text: 'hi',
+      direction: 'auto',
+      provider: 'doubao',
+      apiKey: 'k',
+      model: 'glm-5.2',
+      endpoint: 'https://ark.cn-beijing.volces.com/api/plan/v1/messages',
+      apiFormat: 'anthropic'
+    })
+    const url = globalThis.fetch.mock.calls[0][0]
+    expect(url).toBe('https://ark.cn-beijing.volces.com/api/plan/v1/messages')
+  })
+})
+
 describe('normalizeModel', () => {
   it('returns plain string as-is', () => {
     expect(normalizeModel('qwen-max')).toBe('qwen-max')

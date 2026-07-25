@@ -14,10 +14,10 @@ export const DEFAULT_SETTINGS = {
   translate: {
     defaultProvider: 'qwen',
     providers: {
-      qwen:   { apiKey: '', model: 'qwen-max', endpoint: '' },
-      doubao: { apiKey: '', model: 'doubao-1.5-pro-32k-250115', endpoint: '' },
-      glm:    { apiKey: '', model: 'glm-4', endpoint: '' },
-      kimi:   { apiKey: '', model: 'moonshot-v1-8k', endpoint: '' }
+      qwen:   { apiKey: '', model: 'qwen-max', endpoint: '', apiFormat: 'openai' },
+      doubao: { apiKey: '', model: 'doubao-1.5-pro-32k-250115', endpoint: '', apiFormat: 'openai' },
+      glm:    { apiKey: '', model: 'glm-4', endpoint: '', apiFormat: 'openai' },
+      kimi:   { apiKey: '', model: 'moonshot-v1-8k', endpoint: '', apiFormat: 'openai' }
     }
   }
 }
