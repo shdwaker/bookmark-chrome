@@ -28,7 +28,8 @@ export const useTranslateStore = defineStore('translate', () => {
         direction: direction.value,
         provider: useProvider,
         apiKey: providerConfig.apiKey,
-        model: providerConfig.model
+        model: providerConfig.model,
+        endpoint: providerConfig.endpoint
       })
     } catch (err) {
       error.value = err.message

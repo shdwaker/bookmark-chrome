@@ -173,6 +173,10 @@ describe('normalizeModel', () => {
     expect(normalizeModel('https://ark.cn-beijing.volces.com/api/v3/chat/completions'))
       .toBe('')
   })
+  it('returns empty for coding plan URL without model', () => {
+    expect(normalizeModel('https://ark.cn-beijing.volces.com/api/plan'))
+      .toBe('')
+  })
   it('trims whitespace', () => {
     expect(normalizeModel('  qwen-max  ')).toBe('qwen-max')
   })

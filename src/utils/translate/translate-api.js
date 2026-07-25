@@ -14,7 +14,7 @@ export function normalizeModel(input) {
     const m = u.searchParams.get('model')
     if (m) return m
     // 2. last non-keyword path segment
-    const keywords = new Set(['completions', 'chat', 'api', 'v1', 'v3', 'v4'])
+    const keywords = new Set(['completions', 'chat', 'api', 'v1', 'v3', 'v4', 'plan'])
     const parts = u.pathname.split('/').filter(Boolean)
     for (let i = parts.length - 1; i >= 0; i--) {
       if (!keywords.has(parts[i])) return parts[i]
@@ -41,7 +41,7 @@ async function readErrorDetail(response) {
   }
 }
 
-export async function translate({ text, direction, provider, apiKey, model }) {
+export async function translate({ text, direction, provider, apiKey, model, endpoint }) {
   if (!text || !text.trim()) throw new Error('文本不能为空')
   if (!provider) throw new Error('未选择翻译模型')
 
@@ -50,6 +50,7 @@ export async function translate({ text, direction, provider, apiKey, model }) {
   if (!useApiKey) throw new Error('未配置 API key')
 
   const config = getProvider(provider)
+  const useEndpoint = (endpoint || '').trim() || config.endpoint
   const useModel = normalizeModel(model) || config.defaultModel
   if (!useModel) {
     throw new Error('未配置模型（豆包填模型名即可，如 doubao-1.5-pro-32k-250115）')
@@ -65,7 +66,7 @@ export async function translate({ text, direction, provider, apiKey, model }) {
 
   let response
   try {
-    response = await fetch(config.endpoint, {
+    response = await fetch(useEndpoint, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${useApiKey}`,

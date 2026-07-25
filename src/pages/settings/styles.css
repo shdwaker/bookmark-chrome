@@ -315,3 +315,23 @@ select:focus {
   min-width: 72px;
   padding: 10px 16px;
 }
+.translate-endpoint {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.translate-endpoint input[type="text"] {
+  padding: 10px 14px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 13px;
+  font-family: monospace;
+}
+.translate-endpoint input[type="text"]:focus {
+  outline: none;
+  border-color: #667eea;
+}
+.endpoint-hint {
+  font-size: 12px;
+  color: #888;
+}

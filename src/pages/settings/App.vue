@@ -116,6 +116,15 @@
             >
             <button class="secondary-btn test-btn" @click="testConnection(name)">测试</button>
           </div>
+          <div v-if="name === 'doubao'" class="translate-endpoint">
+            <input
+              v-model="settings.translate.providers[name].endpoint"
+              type="text"
+              :placeholder="PROVIDERS[name].endpoint"
+              @change="saveSettings"
+            >
+            <span class="endpoint-hint">接入地址（留空用默认；Coding plan 填 https://ark.cn-beijing.volces.com/api/plan）</span>
+          </div>
         </div>
         <div class="setting-item">
           <div class="setting-label">
@@ -208,7 +217,7 @@ function translateProviderLabel(name) {
 }
 
 function translateProviderHint(name) {
-  if (name === 'doubao') return '在火山方舟控制台「API Key 管理」页面创建 API Key（不是 Volcengine Access Key），填模型名即可，无需创建接入点'
+  if (name === 'doubao') return '在火山方舟控制台「API Key 管理」页面创建 API Key。默认走 /api/v3/chat/completions；Coding plan 用户在下方「接入地址」填 /api/plan'
   return ''
 }
 
@@ -219,14 +228,15 @@ function translateModelPlaceholder(name) {
 async function testConnection(name) {
   const cfg = settings.value.translate.providers[name]
   if (!cfg.apiKey) { alert('请先填 API key'); return }
-  console.log('[translate] testing', name, 'model=', cfg.model, 'keyLength=', cfg.apiKey.length)
+  console.log('[translate] testing', name, 'model=', cfg.model, 'endpoint=', cfg.endpoint || '(default)', 'keyLength=', cfg.apiKey.length)
   try {
     await translateApi({
       text: 'hi',
       direction: 'auto',
       provider: name,
       apiKey: cfg.apiKey,
-      model: cfg.model
+      model: cfg.model,
+      endpoint: cfg.endpoint
     })
     alert(`${translateProviderLabel(name)} 连接成功`)
   } catch (err) {
