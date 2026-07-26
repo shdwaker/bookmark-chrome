@@ -1,8 +1,9 @@
 // 访问记录管理 - IndexedDB
 
 const DB_NAME = 'BookmarkManagerDB'
-const DB_VERSION = 1
+const DB_VERSION = 2
 const STORE_NAME = 'traceRecords'
+const ONETAB_STORE = 'onetabRecords'
 
 let db = null
 
@@ -25,8 +26,18 @@ export async function initDB() {
         store.createIndex('domain', 'domain', { unique: false })
         store.createIndex('timestamp', 'timestamp', { unique: false })
       }
+      if (!database.objectStoreNames.contains(ONETAB_STORE)) {
+        const onetabStore = database.createObjectStore(ONETAB_STORE, { keyPath: 'id', autoIncrement: true })
+        onetabStore.createIndex('domain', 'domain', { unique: false })
+        onetabStore.createIndex('savedAt', 'savedAt', { unique: false })
+      }
     }
   })
+}
+
+export async function getDB() {
+  if (!db) await initDB()
+  return db
 }
 
 // 添加访问记录
