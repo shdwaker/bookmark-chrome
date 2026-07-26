@@ -38,6 +38,24 @@
         </div>
       </div>
 
+      <!-- OneTab -->
+      <div class="settings-section" id="onetab">
+        <h2>OneTab</h2>
+        <div class="setting-item">
+          <div class="setting-label">
+            <span>页签整合阈值（天）</span>
+            <span class="setting-desc">全局 OneTab 按钮会将超过此天数未访问的页签整合到 OneTab 列表（默认 7 天）</span>
+          </div>
+          <input
+            type="number"
+            min="1"
+            max="365"
+            v-model.number="settings.onetab.tabAgeDays"
+            @change="saveSettings"
+          >
+        </div>
+      </div>
+
       <!-- 书签显示 -->
       <div class="settings-section" id="display">
         <h2>书签显示</h2>
@@ -309,6 +327,7 @@ onMounted(async () => {
 
 const sections = [
   { id: 'trace', label: '访问记录追踪' },
+  { id: 'onetab', label: 'OneTab' },
   { id: 'display', label: '书签显示' },
   { id: 'domains', label: '排除域名' },
   { id: 'translate', label: 'AI 翻译' },
