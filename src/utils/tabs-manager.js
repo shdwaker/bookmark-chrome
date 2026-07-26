@@ -39,7 +39,7 @@ function getDisplayPath(url) {
   }
 }
 
-function getFaviconUrl(url) {
+export function getFaviconUrl(url) {
   if (!url) return ''
   try {
     const parsed = new URL(url)
