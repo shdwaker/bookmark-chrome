@@ -159,7 +159,7 @@ async function handleRestore(record) {
   if (restoring.value) return
   restoring.value = true
   try {
-    const success = await runChromeAction(() => chrome.tabs.create({ url: record.url, active: false }))
+    const success = await runChromeAction(() => chrome.tabs.create({ url: record.url, active: true }))
     if (success) {
       await removeOnetabRecord(record.id)
       await refresh()

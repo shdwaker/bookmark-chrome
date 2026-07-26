@@ -81,17 +81,9 @@
       <button class="nav-action-btn" @click="$emit('open-trace', 'site')">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <circle cx="12" cy="12" r="10"/>
-          <line x1="2" y1="12" x2="22" y2="12"/>
-          <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+          <polyline points="12 6 12 12 16 14"/>
         </svg>
-        网站留痕
-      </button>
-      <button class="nav-action-btn" @click="$emit('open-trace', 'url')">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
-          <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
-        </svg>
-        网址留痕
+        浏览历史
       </button>
       <button
         :class="['nav-action-btn', { active: activeView === 'all-tabs' }]"

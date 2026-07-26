@@ -490,11 +490,18 @@ onUnmounted(() => {
 .clear-duplicates-btn {
   padding: 5px 12px;
   font-size: 12px;
+  min-width: 72px;
 }
 
 .clear-duplicates-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.onetab-all-btn {
+  padding: 5px 12px;
+  font-size: 12px;
+  min-width: 72px;
 }
 
 .content-wrapper {
