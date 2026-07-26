@@ -19,6 +19,14 @@
         <div class="header-right">
           <button
             v-if="viewData"
+            class="btn btn-primary onetab-all-btn"
+            :disabled="clearing"
+            @click="handleOnetabAll"
+          >
+            OneTab
+          </button>
+          <button
+            v-if="viewData"
             class="btn btn-primary clear-duplicates-btn"
             :disabled="viewData.stats.duplicateRecords === 0 || clearing"
             @click="showBulkConfirm = true"
@@ -55,6 +63,13 @@
                   <span class="domain-count">{{ group.tabCount }} 页</span>
                 </div>
                 <div class="domain-card-actions">
+                  <button
+                    class="card-action-btn onetab-card-btn"
+                    :disabled="clearing"
+                    @click="onetabCard(group)"
+                  >
+                    OneTab 全部 ({{ group.tabCount }})
+                  </button>
                   <button
                     class="card-action-btn close-all-btn"
                     :disabled="clearing"
@@ -135,6 +150,7 @@ import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { queryAllTabs, buildAllTabsView, focusTab, closeTabs } from '@/utils/tabs-manager'
 import { getSettings } from '@/utils/storage'
 import { getLunarString } from '@/utils/lunar'
+import { addOnetabRecords, filterEligibleTabs } from '@/utils/onetab-manager'
 
 const VISIBLE_LIMIT = 8
 
@@ -327,6 +343,47 @@ async function handleBulkClear() {
       showBulkConfirm.value = false
       await refreshTabs()
     }
+  } finally {
+    clearing.value = false
+  }
+}
+
+async function handleOnetabAll() {
+  if (clearing.value) return
+  const settings = await getSettings()
+  const tabAgeDays = settings.onetab?.tabAgeDays ?? 7
+  const allTabs = await queryAllTabs()
+  const eligible = filterEligibleTabs(allTabs, tabAgeDays)
+  if (eligible.length === 0) {
+    actionError.value = `没有超过 ${tabAgeDays} 天未访问的页签`
+    return
+  }
+  clearing.value = true
+  try {
+    const saved = await runChromeAction(() => addOnetabRecords(eligible))
+    if (!saved) return
+    const ids = eligible.map(t => t.id).filter(Boolean)
+    await runChromeAction(() => closeTabs(ids))
+    await refreshTabs()
+  } finally {
+    clearing.value = false
+  }
+}
+
+async function onetabCard(group) {
+  if (clearing.value) return
+  const tabs = group.records.flatMap(r => r.tabs).filter(t => t?.id)
+  if (tabs.length === 0) {
+    actionError.value = '没有可整理的页签'
+    return
+  }
+  clearing.value = true
+  try {
+    const saved = await runChromeAction(() => addOnetabRecords(tabs))
+    if (!saved) return
+    const ids = tabs.map(t => t.id)
+    await runChromeAction(() => closeTabs(ids))
+    await refreshTabs()
   } finally {
     clearing.value = false
   }
