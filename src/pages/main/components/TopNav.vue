@@ -104,6 +104,15 @@
         </svg>
         全部页签
       </button>
+      <button
+        :class="['nav-action-btn', { active: activeView === 'onetab' }]"
+        @click="$emit('open-onetab')"
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M3 6h18M3 12h18M3 18h18"/>
+        </svg>
+        OneTab
+      </button>
       <button class="nav-action-btn" @click="$emit('open-translate')">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M5 8l6 6"/>
@@ -150,7 +159,7 @@ const props = defineProps({
   }
 })
 
-defineEmits(['select-root-folder', 'open-trace', 'open-settings', 'open-all-tabs', 'open-translate'])
+defineEmits(['select-root-folder', 'open-trace', 'open-settings', 'open-all-tabs', 'open-onetab', 'open-translate'])
 
 const bookmarkStore = useBookmarkStore()
 

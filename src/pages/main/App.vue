@@ -9,10 +9,12 @@
       @open-trace="handleOpenTrace"
       @open-settings="handleOpenSettings"
       @open-all-tabs="handleOpenAllTabs"
+      @open-onetab="handleOpenOnetab"
       @open-translate="handleOpenTranslate"
     />
     <div class="main-content">
       <AllTabsPanel v-if="activeView === 'all-tabs'" />
+      <OneTabPage v-else-if="activeView === 'onetab'" />
       <template v-else>
         <FolderTree
           :folders="currentFolderTree"
@@ -85,6 +87,7 @@ import TraceModal from './components/TraceModal.vue'
 import ConfirmModal from './components/ConfirmModal.vue'
 import TranslateModal from './components/TranslateModal.vue'
 import AllTabsPanel from './components/AllTabsModal.vue'
+import OneTabPage from './components/OneTabPage.vue'
 
 const bookmarkStore = useBookmarkStore()
 const settingsStore = useSettingsStore()
@@ -248,6 +251,10 @@ function handleOpenSettings() {
 // 处理打开全部页签（切换视图）
 function handleOpenAllTabs() {
   activeView.value = activeView.value === 'all-tabs' ? 'bookmarks' : 'all-tabs'
+}
+
+function handleOpenOnetab() {
+  activeView.value = activeView.value === 'onetab' ? 'bookmarks' : 'onetab'
 }
 
 // 处理打开翻译
