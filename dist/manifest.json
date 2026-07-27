@@ -14,7 +14,8 @@
     "storage",
     "tabs",
     "history",
-    "alarms"
+    "alarms",
+    "contextMenus"
   ],
   "action": {
     "default_title": "打开 MarkTrace",
