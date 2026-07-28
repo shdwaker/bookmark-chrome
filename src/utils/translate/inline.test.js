@@ -1,5 +1,6 @@
-import { describe, expect, it, vi } from 'vitest'
-import { createPool } from './inline'
+// @vitest-environment jsdom
+import { describe, expect, it } from 'vitest'
+import { createPool, hasLatinLetters, hasCJK } from './inline'
 
 describe('createPool', () => {
   it('runs all items through worker with limited concurrency', async () => {
@@ -98,5 +99,121 @@ describe('createPool', () => {
     const pool = createPool({ items, worker, concurrency: 5 })
     await pool.promise
     expect(inFlight.max).toBe(2)
+  })
+})
+
+describe('language helpers', () => {
+  it('hasLatinLetters detects ASCII letters', () => {
+    expect(hasLatinLetters('hello')).toBe(true)
+    expect(hasLatinLetters('你好 world')).toBe(true)
+    expect(hasLatinLetters('你好世界')).toBe(false)
+    expect(hasLatinLetters('123')).toBe(false)
+    expect(hasLatinLetters('')).toBe(false)
+  })
+
+  it('hasCJK detects Chinese/Japanese/Korean characters', () => {
+    expect(hasCJK('你好')).toBe(true)
+    expect(hasCJK('hello 你')).toBe(true)
+    expect(hasCJK('hello world')).toBe(false)
+    expect(hasCJK('')).toBe(false)
+  })
+})
+
+import { collectParagraphs } from './inline'
+
+function domFrom(html) {
+  document.body.innerHTML = html
+  return document
+}
+
+describe('collectParagraphs', () => {
+  it('collects p, h1-h6, li, blockquote, td elements', () => {
+    domFrom(`
+      <h1>Title</h1>
+      <h2>Subtitle</h2>
+      <p>A short paragraph here.</p>
+      <ul><li>First item listed</li><li>Second item listed</li></ul>
+      <blockquote>A quoted passage.</blockquote>
+      <table><tr><td>Cell content here</td></tr></table>
+    `)
+    const paragraphs = collectParagraphs(document.body, 100, { direction: 'auto' })
+    const texts = paragraphs.map(p => p.text)
+    expect(texts).toContain('A short paragraph here.')
+    expect(texts).toContain('First item listed')
+    expect(texts).toContain('A quoted passage.')
+    expect(texts).toContain('Cell content here')
+    expect(texts).toContain('Title')
+    expect(texts).toContain('Subtitle')
+  })
+
+  it('skips elements with text shorter than 8 characters', () => {
+    domFrom(`<p>short</p><p>This is long enough.</p>`)
+    const paragraphs = collectParagraphs(document.body, 100, { direction: 'auto' })
+    expect(paragraphs).toHaveLength(1)
+    expect(paragraphs[0].text).toBe('This is long enough.')
+  })
+
+  it('skips elements nested inside another matched block (li > p)', () => {
+    domFrom(`<li><p>Inner paragraph text here.</p></li>`)
+    const paragraphs = collectParagraphs(document.body, 100, { direction: 'auto' })
+    expect(paragraphs).toHaveLength(1)
+    expect(paragraphs[0].el.tagName).toBe('LI')
+  })
+
+  it('skips elements inside excluded host IDs', () => {
+    domFrom(`
+      <div id="__ai_translate_panel_host__"><p>Inside panel host.</p></div>
+      <p>Outside paragraph text.</p>
+    `)
+    const paragraphs = collectParagraphs(document.body, 100, { direction: 'auto' })
+    expect(paragraphs).toHaveLength(1)
+    expect(paragraphs[0].text).toBe('Outside paragraph text.')
+  })
+
+  it('skips elements already marked as translated', () => {
+    domFrom(`
+      <p data-mt-translated="1">Already done translated.</p>
+      <p>Fresh paragraph text here.</p>
+    `)
+    const paragraphs = collectParagraphs(document.body, 100, { direction: 'auto' })
+    expect(paragraphs).toHaveLength(1)
+    expect(paragraphs[0].text).toBe('Fresh paragraph text here.')
+  })
+
+  it('respects the limit parameter', () => {
+    const html = Array.from({ length: 15 }, (_, i) =>
+      `<p>Paragraph number ${i} has enough text.</p>`
+    ).join('')
+    domFrom(html)
+    const paragraphs = collectParagraphs(document.body, 5, { direction: 'auto' })
+    expect(paragraphs).toHaveLength(5)
+  })
+
+  it('skips Chinese-only paragraphs when direction is en-zh', () => {
+    domFrom(`<p>这是一段中文内容。</p><p>This is English content here.</p>`)
+    const paragraphs = collectParagraphs(document.body, 100, { direction: 'en-zh' })
+    expect(paragraphs).toHaveLength(1)
+    expect(paragraphs[0].text).toBe('This is English content here.')
+  })
+
+  it('skips Latin-only paragraphs when direction is zh-en', () => {
+    domFrom(`<p>This is English content here.</p><p>这是一段中文内容。</p>`)
+    const paragraphs = collectParagraphs(document.body, 100, { direction: 'zh-en' })
+    expect(paragraphs).toHaveLength(1)
+    expect(paragraphs[0].text).toBe('这是一段中文内容。')
+  })
+
+  it('assigns unique sequential ids', () => {
+    domFrom(`<p>First paragraph text.</p><p>Second paragraph text.</p>`)
+    const paragraphs = collectParagraphs(document.body, 100, { direction: 'auto' })
+    expect(paragraphs[0].id).toBe('p1')
+    expect(paragraphs[1].id).toBe('p2')
+    expect(paragraphs[0].status).toBe('pending')
+  })
+
+  it('returns empty array when no matches', () => {
+    domFrom(`<div>no block elements</div>`)
+    const paragraphs = collectParagraphs(document.body, 100, { direction: 'auto' })
+    expect(paragraphs).toEqual([])
   })
 })
