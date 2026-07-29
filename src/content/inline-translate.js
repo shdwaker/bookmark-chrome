@@ -209,6 +209,7 @@ const state = {
   failedCount: 0,
   totalCount: 0,
   overLimit: false,
+  direction: '',
   controlBar: null  // { host, shadow }
 }
 
@@ -330,13 +331,17 @@ function handleClear() {
 
 async function retrySingleParagraph(paragraph) {
   // User clicked a single failed paragraph's retry marker.
+  if (state.cancelled || !state.controlBar) return
   clearParagraphMarker(paragraph)
   try {
     const result = await translateParagraph(paragraph.text)
+    // Re-check after await: session may have been cleared or a bulk retry started.
+    if (state.cancelled || !state.controlBar) return
     injectTranslation(paragraph, result)
-    state.failedCount--
+    state.failedCount = Math.max(0, state.failedCount - 1)
     state.completedCount++
   } catch (err) {
+    if (state.cancelled || !state.controlBar) return
     markFailed(paragraph, err, retrySingleParagraph)
     // failedCount unchanged
   }
@@ -348,6 +353,8 @@ async function handleRetryFailed() {
   const failedParagraphs = state.paragraphs.filter(p => p.status === 'failed')
   if (failedParagraphs.length === 0) return
 
+  // Abort any in-flight single retries before starting bulk retry.
+  state.cancelled = true
   // Clear their markers and reset failed count.
   for (const p of failedParagraphs) {
     clearParagraphMarker(p)
