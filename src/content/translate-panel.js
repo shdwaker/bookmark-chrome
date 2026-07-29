@@ -3,7 +3,8 @@
 // Listens for messages from the background worker and shows a floating
 // Shadow DOM panel with the translation result and TTS controls.
 //
-// No ES module imports - kept self-contained so the bundle stays small.
+// Inline page translation is imported as an ES module orchestrator; the rest of
+// this file remains self-contained so the bundle stays small.
 // Translation is delegated to the background worker via DO_TRANSLATE
 // messages; TTS uses window.speechSynthesis directly.
 
@@ -11,6 +12,8 @@ const PANEL_HOST_ID = '__ai_translate_panel_host__'
 const READ_ALOUD_HOST_ID = '__ai_translate_read_aloud_host__'
 const POPPER_HOST_ID = '__ai_translate_popper_host__'
 const PAGE_TEXT_LIMIT = 5000
+
+import { startInlineTranslation } from './inline-translate.js'
 
 // --- Settings cache (refreshed via storage.onChanged) ---
 const cachedSettings = {
@@ -433,6 +436,12 @@ chrome.runtime.onMessage.addListener((message) => {
     doTranslate(text, 'auto')
       .then(result => showResult(shadow, result, truncated))
       .catch(err => showError(shadow, err.message))
+    return
+  }
+
+  if (message.type === 'translate-page-inline') {
+    const direction = message.direction || 'auto'
+    startInlineTranslation(direction)
     return
   }
 
