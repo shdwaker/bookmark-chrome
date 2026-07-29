@@ -196,3 +196,166 @@ export function flashControlBar(shadow) {
   void bar.offsetWidth  // force reflow to restart animation
   bar.classList.add('flash')
 }
+
+const PARAGRAPH_LIMIT = 100
+const CONCURRENCY = 3
+
+const state = {
+  active: false,
+  cancelled: false,
+  pool: null,
+  paragraphs: [],
+  completedCount: 0,
+  failedCount: 0,
+  totalCount: 0,
+  overLimit: false,
+  controlBar: null  // { host, shadow }
+}
+
+function getDirection() {
+  return state.direction || 'auto'
+}
+
+async function translateParagraph(text) {
+  const direction = getDirection()
+  let response
+  try {
+    response = await chrome.runtime.sendMessage({
+      type: 'DO_TRANSLATE',
+      text,
+      direction
+    })
+  } catch (err) {
+    const msg = err?.message || String(err)
+    if (msg.includes('Extension context invalidated')) {
+      throw new Error('插件已更新，请刷新页面后重试')
+    }
+    throw new Error(`通信失败：${msg}`)
+  }
+  if (!response) throw new Error('后台未响应翻译请求')
+  if (response.error) throw new Error(response.error)
+  return response.result
+}
+
+function refreshControlBar() {
+  if (!state.controlBar) return
+  updateControlBar(state.controlBar.shadow, state)
+}
+
+export async function startInlineTranslation(direction) {
+  // Idempotent: if already active, flash the control bar and return.
+  if (state.active) {
+    if (state.controlBar) flashControlBar(state.controlBar.shadow)
+    return
+  }
+
+  // Reset state for a fresh session.
+  state.cancelled = false
+  state.completedCount = 0
+  state.failedCount = 0
+  state.direction = direction || 'auto'
+
+  // Collect paragraphs (snapshot at trigger time).
+  const allParagraphs = collectParagraphs(document.body, PARAGRAPH_LIMIT, {
+    direction: state.direction
+  })
+  // Heuristic: if we hit exactly the limit, there are probably more on the page.
+  state.overLimit = allParagraphs.length === PARAGRAPH_LIMIT
+
+  if (allParagraphs.length === 0) {
+    alert('未找到可翻译的段落')
+    return
+  }
+
+  state.paragraphs = allParagraphs
+  state.totalCount = allParagraphs.length
+  state.active = true
+
+  // Create control bar.
+  state.controlBar = createControlBar({
+    onStop: handleStop,
+    onClear: handleClear,
+    onRetry: handleRetryFailed
+  })
+  refreshControlBar()
+
+  // Build and run the pool.
+  await runPool(state.paragraphs)
+}
+
+async function runPool(paragraphs) {
+  const pool = createPool({
+    items: paragraphs,
+    concurrency: CONCURRENCY,
+    shouldCancel: () => state.cancelled,
+    worker: async (paragraph) => {
+      if (state.cancelled) return
+      try {
+        const result = await translateParagraph(paragraph.text)
+        if (state.cancelled) return
+        injectTranslation(paragraph, result)
+        state.completedCount++
+      } catch (err) {
+        if (state.cancelled) return
+        markFailed(paragraph, err, retrySingleParagraph)
+        state.failedCount++
+      }
+      refreshControlBar()
+    }
+  })
+  state.pool = pool
+  await pool.promise
+  state.active = false
+  state.pool = null
+  refreshControlBar()
+}
+
+function handleStop() {
+  state.cancelled = true
+  if (state.pool) state.pool.cancel()
+}
+
+function handleClear() {
+  state.cancelled = true
+  if (state.pool) state.pool.cancel()
+  removeAllInjected()
+  removeControlBar()
+  state.active = false
+  state.paragraphs = []
+  state.completedCount = 0
+  state.failedCount = 0
+  state.totalCount = 0
+  state.controlBar = null
+}
+
+async function retrySingleParagraph(paragraph) {
+  // User clicked a single failed paragraph's retry marker.
+  clearParagraphMarker(paragraph)
+  try {
+    const result = await translateParagraph(paragraph.text)
+    injectTranslation(paragraph, result)
+    state.failedCount--
+    state.completedCount++
+  } catch (err) {
+    markFailed(paragraph, err, retrySingleParagraph)
+    // failedCount unchanged
+  }
+  refreshControlBar()
+}
+
+async function handleRetryFailed() {
+  if (state.active) return
+  const failedParagraphs = state.paragraphs.filter(p => p.status === 'failed')
+  if (failedParagraphs.length === 0) return
+
+  // Clear their markers and reset failed count.
+  for (const p of failedParagraphs) {
+    clearParagraphMarker(p)
+  }
+  state.failedCount = 0
+  state.cancelled = false
+  state.active = true
+  refreshControlBar()
+
+  await runPool(failedParagraphs)
+}
