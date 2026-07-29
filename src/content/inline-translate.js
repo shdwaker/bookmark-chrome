@@ -210,6 +210,7 @@ const state = {
   totalCount: 0,
   overLimit: false,
   direction: '',
+  retryGen: 0,  // bumped to invalidate in-flight single retries
   controlBar: null  // { host, shadow }
 }
 
@@ -331,17 +332,19 @@ function handleClear() {
 
 async function retrySingleParagraph(paragraph) {
   // User clicked a single failed paragraph's retry marker.
+  const gen = state.retryGen
   if (state.cancelled || !state.controlBar) return
   clearParagraphMarker(paragraph)
   try {
     const result = await translateParagraph(paragraph.text)
-    // Re-check after await: session may have been cleared or a bulk retry started.
-    if (state.cancelled || !state.controlBar) return
+    // Re-check after await: session may have been cleared or a bulk retry
+    // may have started (which bumps retryGen to invalidate us).
+    if (state.cancelled || !state.controlBar || gen !== state.retryGen) return
     injectTranslation(paragraph, result)
     state.failedCount = Math.max(0, state.failedCount - 1)
     state.completedCount++
   } catch (err) {
-    if (state.cancelled || !state.controlBar) return
+    if (state.cancelled || !state.controlBar || gen !== state.retryGen) return
     markFailed(paragraph, err, retrySingleParagraph)
     // failedCount unchanged
   }
@@ -353,13 +356,14 @@ async function handleRetryFailed() {
   const failedParagraphs = state.paragraphs.filter(p => p.status === 'failed')
   if (failedParagraphs.length === 0) return
 
-  // Abort any in-flight single retries before starting bulk retry.
-  state.cancelled = true
+  // Invalidate any in-flight single retries so their post-await guards bail.
+  state.retryGen++
   // Clear their markers and reset failed count.
   for (const p of failedParagraphs) {
     clearParagraphMarker(p)
   }
   state.failedCount = 0
+  // Reset cancelled flag (may be true from a prior Stop) so the new pool can run.
   state.cancelled = false
   state.active = true
   refreshControlBar()
