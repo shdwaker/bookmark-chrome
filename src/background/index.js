@@ -69,7 +69,7 @@ async function refreshContextMenuState() {
 chrome.contextMenus.onClicked.addListener((info, tab) => {
   if (!tab?.id) return
   const type = info.menuItemId
-  if (type !== 'translate-page' && type !== 'translate-selection' && type !== 'read-aloud') return
+  if (type !== 'translate-page' && type !== 'translate-page-inline' && type !== 'translate-selection' && type !== 'read-aloud') return
   chrome.tabs.sendMessage(tab.id, {
     type,
     selectionText: info.selectionText || ''
@@ -90,6 +90,12 @@ function createContextMenus() {
       id: 'translate-page',
       parentId: 'ai-translate',
       title: '翻译整个页面',
+      contexts: ['page']
+    })
+    chrome.contextMenus.create({
+      id: 'translate-page-inline',
+      parentId: 'ai-translate',
+      title: '内联翻译页面',
       contexts: ['page']
     })
     chrome.contextMenus.create({
