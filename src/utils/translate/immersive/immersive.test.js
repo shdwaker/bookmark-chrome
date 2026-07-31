@@ -277,3 +277,101 @@ describe('paragraph-detector constants', () => {
     expect(SKIP_TAGS.has('SVG')).toBe(true)
   })
 })
+
+import { createCache } from './cache'
+
+// In-memory backend for testing (avoids real IndexedDB in jsdom).
+function createMemoryBackend() {
+  const store = new Map()
+  return {
+    async get(key) { return store.has(key) ? store.get(key) : undefined },
+    async set(key, value) { store.set(key, value) },
+    async delete(key) { store.delete(key) },
+    async clear() { store.clear() },
+    async getMany(keys) {
+      const result = new Map()
+      for (const key of keys) {
+        if (store.has(key)) result.set(key, store.get(key))
+      }
+      return result
+    },
+    async setMany(entries) {
+      for (const [key, value] of entries) store.set(key, value)
+    }
+  }
+}
+
+describe('createCache', () => {
+  it('query returns empty miss for new cache', async () => {
+    const cache = createCache({ backend: createMemoryBackend() })
+    await cache.init()
+    const { hit, miss } = await cache.query(['hello', 'world'], 'en-zh')
+    expect(hit.size).toBe(0)
+    expect(miss).toEqual(['hello', 'world'])
+  })
+
+  it('write then query returns hit', async () => {
+    const cache = createCache({ backend: createMemoryBackend() })
+    await cache.init()
+    await cache.write([
+      { text: 'hello', direction: 'en-zh', translation: '你好' },
+      { text: 'world', direction: 'en-zh', translation: '世界' }
+    ])
+    const { hit, miss } = await cache.query(['hello', 'world', 'new'], 'en-zh')
+    expect(hit.get('hello')).toBe('你好')
+    expect(hit.get('world')).toBe('世界')
+    expect(miss).toEqual(['new'])
+  })
+
+  it('query separates hit and miss correctly', async () => {
+    const cache = createCache({ backend: createMemoryBackend() })
+    await cache.init()
+    await cache.write([
+      { text: 'cached', direction: 'auto', translation: '已缓存' }
+    ])
+    const { hit, miss } = await cache.query(['cached', 'uncached1', 'uncached2'], 'auto')
+    expect(hit.size).toBe(1)
+    expect(hit.get('cached')).toBe('已缓存')
+    expect(miss).toEqual(['uncached1', 'uncached2'])
+  })
+
+  it('different directions use different cache entries', async () => {
+    const cache = createCache({ backend: createMemoryBackend() })
+    await cache.init()
+    await cache.write([
+      { text: 'hello', direction: 'en-zh', translation: '你好' }
+    ])
+    const { hit, miss } = await cache.query(['hello'], 'zh-en')
+    expect(hit.size).toBe(0)
+    expect(miss).toEqual(['hello'])
+  })
+
+  it('clear empties the cache', async () => {
+    const cache = createCache({ backend: createMemoryBackend() })
+    await cache.init()
+    await cache.write([
+      { text: 'hello', direction: 'auto', translation: '你好' }
+    ])
+    await cache.clear()
+    const { hit, miss } = await cache.query(['hello'], 'auto')
+    expect(hit.size).toBe(0)
+    expect(miss).toEqual(['hello'])
+  })
+
+  it('handles empty query input', async () => {
+    const cache = createCache({ backend: createMemoryBackend() })
+    await cache.init()
+    const { hit, miss } = await cache.query([], 'auto')
+    expect(hit.size).toBe(0)
+    expect(miss).toEqual([])
+  })
+
+  it('handles empty write input', async () => {
+    const cache = createCache({ backend: createMemoryBackend() })
+    await cache.init()
+    await cache.write([])
+    const { hit, miss } = await cache.query(['test'], 'auto')
+    expect(hit.size).toBe(0)
+    expect(miss).toEqual(['test'])
+  })
+})
