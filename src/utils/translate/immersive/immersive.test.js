@@ -27,3 +27,54 @@ describe('hasLatinLetters', () => {
     expect(hasCJK(undefined)).toBe(false)
   })
 })
+
+import { getSiteRule, SITE_RULES } from './site-rules'
+
+describe('getSiteRule', () => {
+  it('returns rule for twitter.com', () => {
+    const rule = getSiteRule('https://twitter.com/user/status/123')
+    expect(rule).toBeTruthy()
+    expect(rule.hosts).toContain('twitter.com')
+  })
+
+  it('returns rule for x.com', () => {
+    const rule = getSiteRule('https://x.com/user/status/123')
+    expect(rule).toBeTruthy()
+    expect(rule.hosts).toContain('x.com')
+  })
+
+  it('returns rule for reddit.com', () => {
+    const rule = getSiteRule('https://www.reddit.com/r/programming/')
+    expect(rule).toBeTruthy()
+    expect(rule.hosts).toContain('reddit.com')
+  })
+
+  it('returns rule for news.ycombinator.com', () => {
+    const rule = getSiteRule('https://news.ycombinator.com/item?id=123')
+    expect(rule).toBeTruthy()
+  })
+
+  it('returns rule for github.com', () => {
+    const rule = getSiteRule('https://github.com/user/repo')
+    expect(rule).toBeTruthy()
+  })
+
+  it('returns rule for en.wikipedia.org', () => {
+    const rule = getSiteRule('https://en.wikipedia.org/wiki/Test')
+    expect(rule).toBeTruthy()
+  })
+
+  it('returns null for unmatched site', () => {
+    expect(getSiteRule('https://example.com/page')).toBeNull()
+    expect(getSiteRule('https://blog.example.org/post')).toBeNull()
+  })
+
+  it('all rules have required fields', () => {
+    for (const rule of SITE_RULES) {
+      expect(Array.isArray(rule.hosts)).toBe(true)
+      expect(rule.hosts.length).toBeGreaterThan(0)
+      expect(Array.isArray(rule.containerSelectors)).toBe(true)
+      expect(Array.isArray(rule.noTranslateSelectors)).toBe(true)
+    }
+  })
+})
