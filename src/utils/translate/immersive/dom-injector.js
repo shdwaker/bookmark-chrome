@@ -21,21 +21,34 @@ export function cloneBlockElement(blockEl) {
 }
 
 // Inject a translation into a piece's text nodes.
-// translation can be a single string (applied to first text node) or
-// an array of strings (one per text node).
+// The translation covers the WHOLE piece (all text nodes combined), so it
+// is shown once in the first text node's position; remaining text nodes are
+// replaced with hidden empty spans so the original text doesn't show through.
+//
+// translation may be a string or a { translation, notes } object (stale cache
+// entries from before the string-extraction fix). Both are normalized to a
+// string here.
 // Returns array of { originalNode, translatedSpan, blockEl } for cleanup.
 export function injectTranslation(piece, translation) {
   const spans = []
-  const translations = Array.isArray(translation)
-    ? translation
-    : [translation]
+  if (piece.textNodes.length === 0) return spans
+
+  // Normalize to string: handle stale cache objects and array wrappers.
+  const raw = Array.isArray(translation) ? translation[0] : translation
+  const text = (raw && typeof raw === 'object') ? (raw.translation || '') : String(raw || '')
 
   for (let i = 0; i < piece.textNodes.length; i++) {
     const textNode = piece.textNodes[i]
-    const translatedText = translations[i] || translations[0] || ''
     const span = document.createElement(TRANSLATED_TAG)
     span.setAttribute(TRANSLATED_ATTR, '1')
-    span.textContent = translatedText
+    if (i === 0) {
+      span.textContent = text
+    } else {
+      // The translation already covers this text; hide the placeholder so
+      // the original fragment doesn't appear alongside the translation.
+      span.textContent = ''
+      span.style.display = 'none'
+    }
     textNode.parentNode.replaceChild(span, textNode)
     spans.push({
       originalNode: textNode,
