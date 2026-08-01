@@ -13,7 +13,8 @@ const READ_ALOUD_HOST_ID = '__ai_translate_read_aloud_host__'
 const POPPER_HOST_ID = '__ai_translate_popper_host__'
 const PAGE_TEXT_LIMIT = 5000
 
-import { startInlineTranslation } from './inline-translate.js'
+import { startInlineTranslation, clearInline } from './inline-translate.js'
+import { startImmersive, clearImmersive } from './immersive-translate.js'
 
 // --- Settings cache (refreshed via storage.onChanged) ---
 const cachedSettings = {
@@ -441,7 +442,15 @@ chrome.runtime.onMessage.addListener((message) => {
 
   if (message.type === 'translate-page-inline') {
     const direction = message.direction || 'auto'
+    clearImmersive()
     startInlineTranslation(direction)
+    return
+  }
+
+  if (message.type === 'immersive-translate') {
+    const direction = message.direction || 'auto'
+    clearInline()
+    startImmersive(direction)
     return
   }
 
