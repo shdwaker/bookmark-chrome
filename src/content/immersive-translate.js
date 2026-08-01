@@ -63,6 +63,7 @@ const CONTROL_BAR_HTML = `
   <button class="btn mode-btn" data-mode="original">原文</button>
   <button class="btn mode-btn" data-mode="translated">译文</button>
   <button class="btn mode-btn active" data-mode="dual">双语</button>
+  <button class="btn pause-btn">暂停</button>
   <button class="btn btn-danger retry-btn" style="display:none;">重试失败</button>
   <button class="btn clear-btn">清除</button>
 </div>
@@ -71,6 +72,7 @@ const CONTROL_BAR_HTML = `
 const state = {
   active: false,
   cancelled: false,
+  paused: false,
   mode: 'dual',
   direction: '',
   pieces: [],
@@ -109,7 +111,11 @@ async function translatePiece(text) {
   }
   if (!response) throw new Error('后台未响应翻译请求')
   if (response.error) throw new Error(response.error)
-  return response.result
+  // translate() returns { translation, notes } -- extract the string
+  const result = response.result
+  if (typeof result === 'string') return result
+  if (result?.translation) return result.translation
+  throw new Error('翻译结果格式异常')
 }
 
 // --- Control bar ---
@@ -127,6 +133,7 @@ function createControlBar() {
 
   shadow.querySelector('.clear-btn').addEventListener('click', handleClear)
   shadow.querySelector('.retry-btn').addEventListener('click', handleRetryFailed)
+  shadow.querySelector('.pause-btn').addEventListener('click', handlePauseToggle)
   shadow.querySelectorAll('.mode-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const mode = btn.dataset.mode
@@ -141,14 +148,17 @@ function createControlBar() {
 function updateControlBar() {
   if (!state.controlBar) return
   const shadow = state.controlBar.shadow
-  const { active, completedCount, failedCount, totalCount } = state
+  const { active, completedCount, failedCount, totalCount, paused } = state
 
   const statusEl = shadow.querySelector('.status')
   const countEl = shadow.querySelector('.count')
   const hintEl = shadow.querySelector('.hint')
   const retryBtn = shadow.querySelector('.retry-btn')
+  const pauseBtn = shadow.querySelector('.pause-btn')
 
-  if (active) {
+  if (paused) {
+    statusEl.textContent = '已暂停'
+  } else if (active) {
     statusEl.textContent = '沉浸式中…'
   } else {
     statusEl.textContent = '完成'
@@ -162,6 +172,11 @@ function updateControlBar() {
   } else {
     hintEl.textContent = ''
     retryBtn.style.display = 'none'
+  }
+
+  if (pauseBtn) {
+    pauseBtn.textContent = paused ? '继续' : '暂停'
+    pauseBtn.classList.toggle('active', paused)
   }
 
   shadow.querySelectorAll('.mode-btn').forEach(btn => {
@@ -190,6 +205,21 @@ function handleModeSwitch(mode) {
   updateControlBar()
 }
 
+// --- Pause / Resume ---
+
+function handlePauseToggle() {
+  state.paused = !state.paused
+  updateControlBar()
+}
+
+// Wait while paused, bail out if cancelled. Returns true if safe to proceed.
+async function waitWhilePaused() {
+  while (state.paused && !state.cancelled) {
+    await new Promise(r => setTimeout(r, 200))
+  }
+  return !state.cancelled
+}
+
 // --- Cloning ---
 
 function cloneBlockElements(pieces) {
@@ -211,6 +241,8 @@ async function runPool(pieces) {
     shouldCancel: () => state.cancelled,
     worker: async (piece) => {
       if (state.cancelled) return
+      // Wait while paused before starting this piece's translation.
+      if (!await waitWhilePaused()) return
       const result = await translatePiece(piece.text)
       if (state.cancelled) return
       const spans = injectTranslation(piece, result)
@@ -322,6 +354,7 @@ function handleClear() {
   removeControlBar()
   state.active = false
   state.cancelled = false
+  state.paused = false
   state.pieces = []
   state.clones = new Map()
   state.translatedSpans = []

@@ -5,7 +5,7 @@
   (async () => {
     const { onExecute } = await import(
       /* @vite-ignore */
-      chrome.runtime.getURL("assets/translate-panel.js-nO7YzJTJ.js")
+      chrome.runtime.getURL("assets/translate-panel.js-BuznBpUD.js")
     );
     onExecute?.({ perf: { injectTime, loadTime: performance.now() - injectTime } });
   })().catch(console.error);
