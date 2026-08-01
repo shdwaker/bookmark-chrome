@@ -1,1 +1,1 @@
-import './assets/index.js-CEDLQTV2.js';
+import './assets/index.js-DZB3refT.js';
