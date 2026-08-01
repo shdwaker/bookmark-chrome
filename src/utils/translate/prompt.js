@@ -10,6 +10,7 @@ export function buildSystemPrompt(direction = 'auto') {
   return [
     `你是专业翻译。任务：${task}。`,
     '- 自动检测源语言，如果已经是目标语言就原样返回',
+    '- 数学公式、函数名、数学符号保持原样不翻译（如 softmax, Attention(Q,K,V), ReLU, LaTeX 命令）',
     '- 输出严格 JSON：{"translation": "译文", "notes": "1-2 句关键点（词性/语境/用法/或为什么这么译）"}',
     '- 不要输出 JSON 以外的内容'
   ].join('\n')

@@ -128,12 +128,13 @@ const CONTROL_BAR_HTML = `
   <span class="hint"></span>
   <span class="spacer"></span>
   <button class="btn btn-primary retry-btn" style="display:none;">重试失败</button>
+  <button class="btn btn-primary continue-btn" style="display:none;">继续翻译</button>
   <button class="btn btn-danger stop-btn" style="display:none;">停止</button>
   <button class="btn clear-btn">清除</button>
 </div>
 `
 
-export function createControlBar({ onStop, onClear, onRetry }) {
+export function createControlBar({ onStop, onClear, onRetry, onContinue }) {
   document.getElementById(CONTROL_BAR_HOST_ID)?.remove()
 
   const host = document.createElement('div')
@@ -147,6 +148,7 @@ export function createControlBar({ onStop, onClear, onRetry }) {
   shadow.querySelector('.stop-btn').addEventListener('click', onStop)
   shadow.querySelector('.clear-btn').addEventListener('click', onClear)
   shadow.querySelector('.retry-btn').addEventListener('click', onRetry)
+  shadow.querySelector('.continue-btn').addEventListener('click', onContinue)
 
   return { host, shadow }
 }
@@ -158,6 +160,7 @@ export function updateControlBar(shadow, state) {
   const hintEl = shadow.querySelector('.hint')
   const stopBtn = shadow.querySelector('.stop-btn')
   const retryBtn = shadow.querySelector('.retry-btn')
+  const continueBtn = shadow.querySelector('.continue-btn')
 
   if (active) {
     statusEl.textContent = '译文中…'
@@ -184,6 +187,7 @@ export function updateControlBar(shadow, state) {
   }
 
   retryBtn.style.display = (!active && failedCount > 0) ? '' : 'none'
+  continueBtn.style.display = (!active && !cancelled && overLimit) ? '' : 'none'
 }
 
 export function removeControlBar() {
@@ -277,7 +281,8 @@ export async function startInlineTranslation(direction) {
   state.controlBar = createControlBar({
     onStop: handleStop,
     onClear: handleClear,
-    onRetry: handleRetryFailed
+    onRetry: handleRetryFailed,
+    onContinue: handleContinue
   })
   refreshControlBar()
 
@@ -317,6 +322,27 @@ function handleStop() {
   if (state.pool) state.pool.cancel()
 }
 
+async function handleContinue() {
+  if (state.active) return
+  // collectParagraphs skips elements with data-mt-translated/data-mt-failed,
+  // so this naturally returns only the next untranslated batch.
+  const newParagraphs = collectParagraphs(document.body, PARAGRAPH_LIMIT, {
+    direction: state.direction
+  })
+  if (newParagraphs.length === 0) {
+    state.overLimit = false
+    refreshControlBar()
+    return
+  }
+  state.overLimit = newParagraphs.length === PARAGRAPH_LIMIT
+  state.paragraphs = state.paragraphs.concat(newParagraphs)
+  state.totalCount += newParagraphs.length
+  state.cancelled = false
+  state.active = true
+  refreshControlBar()
+  await runPool(newParagraphs)
+}
+
 function handleClear() {
   state.cancelled = true
   if (state.pool) state.pool.cancel()
@@ -327,6 +353,7 @@ function handleClear() {
   state.completedCount = 0
   state.failedCount = 0
   state.totalCount = 0
+  state.overLimit = false
   state.controlBar = null
 }
 

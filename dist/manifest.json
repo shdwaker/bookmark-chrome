@@ -37,8 +37,8 @@
   "content_scripts": [
     {
       "js": [
-        "assets/translate-panel.js-loader-DtGKnL91.js",
-        "assets/inline-translate.js-loader-Dg62qkOU.js"
+        "assets/translate-panel.js-loader-DuOm12B4.js",
+        "assets/inline-translate.js-loader-DyhFhjo4.js"
       ],
       "matches": [
         "<all_urls>"
@@ -57,9 +57,9 @@
       "resources": [
         "src/pages/main/index.html",
         "src/pages/settings/index.html",
-        "assets/inline-translate-DMaYHONP.js",
-        "assets/inline-translate.js-ByFKfRKD.js",
-        "assets/translate-panel.js-BuznBpUD.js"
+        "assets/inline-translate-oh347gzp.js",
+        "assets/inline-translate.js-BwONhCOk.js",
+        "assets/translate-panel.js-E7IFsyZH.js"
       ],
       "use_dynamic_url": false
     }

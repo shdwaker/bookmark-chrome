@@ -20,6 +20,12 @@ describe('buildSystemPrompt', () => {
       expect(buildSystemPrompt(d)).toMatch(/不要输出 JSON 以外的内容/)
     }
   })
+  it('instructs to keep math formulas untranslated', () => {
+    for (const d of ['auto', 'zh-en', 'en-zh']) {
+      expect(buildSystemPrompt(d)).toMatch(/数学公式/)
+      expect(buildSystemPrompt(d)).toMatch(/softmax/)
+    }
+  })
 })
 
 describe('buildUserPrompt', () => {

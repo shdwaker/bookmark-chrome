@@ -54,8 +54,10 @@ const DEFAULT_EXCLUDED_ROOTS = [
   '#__ai_translate_panel_host__',
   '#__ai_translate_read_aloud_host__',
   '#__ai_translate_popper_host__',
-  '#__mt_control_bar_host__'
+  '#__mt_control_bar_host__',
+  '#__immersive_control_bar_host__'
 ]
+const MATH_SELECTOR = 'math, mjx-container, .katex, .MathJax, .mathjax, .math'
 const MIN_TEXT_LENGTH = 8
 
 function isVisible(el) {
@@ -92,6 +94,7 @@ export function collectParagraphs(root, limit = 100, options = {}) {
     if (el.parentElement && el.parentElement.closest(BLOCK_SELECTOR)) continue
 
     if (isInsideExcludedRoot(el, excludedRoots)) continue
+    if (el.closest(MATH_SELECTOR)) continue
     if (el.hasAttribute('data-mt-translated') || el.hasAttribute('data-mt-failed')) continue
     if (!isVisible(el)) continue
 

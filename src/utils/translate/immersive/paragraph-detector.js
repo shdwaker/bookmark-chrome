@@ -25,8 +25,11 @@ export const BLOCK_TAGS = new Set([
 export const SKIP_TAGS = new Set([
   'SCRIPT', 'STYLE', 'TEXTAREA', 'SVG', 'NOSCRIPT', 'IFRAME',
   'BR', 'KBD', 'WBR', 'SELECT', 'DATALIST', 'OPTION', 'OPTGROUP',
-  'OBJECT', 'EMBED', 'CANVAS', 'AUDIO', 'VIDEO', 'TRACK', 'MAP', 'AREA'
+  'OBJECT', 'EMBED', 'CANVAS', 'AUDIO', 'VIDEO', 'TRACK', 'MAP', 'AREA',
+  'MATH', 'MJX-CONTAINER'
 ])
+
+const MATH_CLASSES = new Set(['katex', 'MathJax', 'mathjax', 'math'])
 
 const MAX_PIECE_CHARS = 1000
 const EXCLUDED_ROOTS = new Set([
@@ -49,7 +52,7 @@ function findBlockAncestor(node) {
   return document.body
 }
 
-// Check if an element should be skipped (notranslate, translate=no, contenteditable, excluded root).
+// Check if an element should be skipped (notranslate, translate=no, contenteditable, excluded root, math).
 function shouldSkipElement(el) {
   if (SKIP_TAGS.has(el.tagName)) return true
   if (el.classList?.contains('notranslate')) return true
@@ -59,6 +62,12 @@ function shouldSkipElement(el) {
   if (el.id && EXCLUDED_ROOTS.has(el.id)) return true
   if (el.dataset?.immersiveOriginal !== undefined) return true
   if (el.dataset?.immersiveTranslated !== undefined) return true
+  // Skip KaTeX/MathJax rendered math.
+  if (el.classList) {
+    for (const cls of MATH_CLASSES) {
+      if (el.classList.contains(cls)) return true
+    }
+  }
   return false
 }
 
