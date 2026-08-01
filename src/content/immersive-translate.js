@@ -81,6 +81,7 @@ const state = {
   totalCount: 0,
   pool: null,
   observer: null,
+  debounceTimer: null,
   cache: null,
   controlBar: null,
   retryGen: 0
@@ -249,11 +250,10 @@ async function runPool(pieces) {
 function startObserver() {
   if (state.observer) return
 
-  let debounceTimer = null
   const observer = new MutationObserver(() => {
-    if (debounceTimer) return
-    debounceTimer = setTimeout(() => {
-      debounceTimer = null
+    if (state.debounceTimer) return
+    state.debounceTimer = setTimeout(() => {
+      state.debounceTimer = null
       handleMutations()
     }, OBSERVER_DEBOUNCE_MS)
   })
@@ -263,7 +263,7 @@ function startObserver() {
 }
 
 function handleMutations() {
-  if (state.cancelled) return
+  if (state.cancelled || !state.observer || !state.controlBar) return
 
   const rule = getSiteRule(location.href)
   const allPieces = collectPieces(document.body, {
@@ -310,6 +310,10 @@ function handleStop() {
 function handleClear() {
   state.cancelled = true
   if (state.pool) state.pool.cancel()
+  if (state.debounceTimer) {
+    clearTimeout(state.debounceTimer)
+    state.debounceTimer = null
+  }
   if (state.observer) {
     state.observer.disconnect()
     state.observer = null
@@ -330,9 +334,11 @@ function handleClear() {
 async function retrySinglePiece(piece) {
   const gen = state.retryGen
   if (state.cancelled || !state.controlBar) return
-  // Remove the failed marker span and restore original text node.
+  // Remove only this piece's failed marker spans and restore original text nodes.
+  // Match on originalNode membership, not blockEl (multiple pieces may share a blockEl).
+  const pieceNodeSet = new Set(piece.textNodes)
   for (let i = state.translatedSpans.length - 1; i >= 0; i--) {
-    if (state.translatedSpans[i].blockEl === piece.blockEl) {
+    if (pieceNodeSet.has(state.translatedSpans[i].originalNode)) {
       const { originalNode, translatedSpan } = state.translatedSpans[i]
       if (translatedSpan.parentNode) {
         translatedSpan.parentNode.replaceChild(originalNode, translatedSpan)
@@ -369,6 +375,24 @@ async function handleRetryFailed() {
   if (state.active) return
   const failedPieces = state.pieces.filter(p => p.status === 'failed')
   if (failedPieces.length === 0) return
+
+  // Restore original text nodes for failed pieces before retrying.
+  // markFailed replaced textNodes[0] with a failed span, orphaning the node.
+  // injectTranslation will try to replaceChild on these nodes, which throws
+  // if parentNode is null. We must restore them first.
+  for (const piece of failedPieces) {
+    const pieceNodeSet = new Set(piece.textNodes)
+    for (let i = state.translatedSpans.length - 1; i >= 0; i--) {
+      if (pieceNodeSet.has(state.translatedSpans[i].originalNode)) {
+        const { originalNode, translatedSpan } = state.translatedSpans[i]
+        if (translatedSpan.parentNode) {
+          translatedSpan.parentNode.replaceChild(originalNode, translatedSpan)
+        }
+        state.translatedSpans.splice(i, 1)
+      }
+    }
+    piece.status = 'pending'
+  }
 
   state.retryGen++
   state.cancelled = false
