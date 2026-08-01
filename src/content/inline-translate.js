@@ -330,6 +330,12 @@ function handleClear() {
   state.controlBar = null
 }
 
+// Exported for mutual exclusion: translate-panel.js calls this before
+// starting immersive translation to clear any active inline session.
+export function clearInline() {
+  handleClear()
+}
+
 async function retrySingleParagraph(paragraph) {
   // User clicked a single failed paragraph's retry marker.
   const gen = state.retryGen
