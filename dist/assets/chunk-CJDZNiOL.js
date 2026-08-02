@@ -1,0 +1,1 @@
+function h(c,s=500){if(c.length<=s)return[c];const l=c.split(new RegExp("(?<=[.!?。！？\\n])\\s*")),e=[];let n="";for(const t of l)if(t)for(n&&n.length+t.length+1>s?(e.push(n),n=t):n=n?n+" "+t:t;n.length>s*1.5;)e.push(n.slice(0,s)),n=n.slice(s);return n&&e.push(n),e}export{h as s};

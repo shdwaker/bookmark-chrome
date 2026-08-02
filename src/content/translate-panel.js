@@ -15,6 +15,7 @@ const PAGE_TEXT_LIMIT = 5000
 
 import { startInlineTranslation, clearInline } from './inline-translate.js'
 import { startImmersive, clearImmersive } from './immersive-translate.js'
+import { splitTextIntoChunks } from '../utils/translate/chunk.js'
 
 // --- Settings cache (refreshed via storage.onChanged) ---
 const cachedSettings = {
@@ -127,34 +128,9 @@ async function doTranslate(text, direction) {
 }
 
 // --- Incremental translation for long text ---
-// Splits text into ~500-char chunks at sentence boundaries, translates each
-// sequentially, and calls onPartial after each chunk so the UI can render
-// results incrementally.
-const CHUNK_SIZE = 500
-
-function splitTextIntoChunks(text, maxSize = CHUNK_SIZE) {
-  if (text.length <= maxSize) return [text]
-  // Split at sentence-ending punctuation or newlines.
-  const sentences = text.split(/(?<=[.!?。！？\n])\s*/)
-  const chunks = []
-  let current = ''
-  for (const sentence of sentences) {
-    if (!sentence) continue
-    if (current && (current.length + sentence.length + 1) > maxSize) {
-      chunks.push(current)
-      current = sentence
-    } else {
-      current = current ? current + ' ' + sentence : sentence
-    }
-    // Hard-split very long single sentences.
-    while (current.length > maxSize * 1.5) {
-      chunks.push(current.slice(0, maxSize))
-      current = current.slice(maxSize)
-    }
-  }
-  if (current) chunks.push(current)
-  return chunks
-}
+// Splits text into chunks, translates each sequentially, and calls
+// onPartial after each chunk so the UI can render results incrementally.
+// Chunk splitting logic is shared via src/utils/translate/chunk.js.
 
 async function doTranslateIncremental(text, direction, onPartial) {
   const chunks = splitTextIntoChunks(text)

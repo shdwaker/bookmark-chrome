@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { getSettings } from '@/utils/storage'
 import { translate as translateApi } from '@/utils/translate/translate-api'
+import { splitTextIntoChunks } from '@/utils/translate/chunk'
 
 export const useTranslateStore = defineStore('translate', () => {
   const result = ref(null)
@@ -19,20 +20,35 @@ export const useTranslateStore = defineStore('translate', () => {
       error.value = `请先在设置中配置 ${useProvider} 的 API key`
       return
     }
+
+    const callOpts = {
+      direction: direction.value,
+      provider: useProvider,
+      apiKey: providerConfig.apiKey,
+      model: providerConfig.model,
+      baseURL: providerConfig.baseURL,
+      apiFormat: providerConfig.apiFormat
+    }
+
+    const chunks = splitTextIntoChunks(text)
+
     loading.value = true
     error.value = ''
     result.value = null
+
+    let fullTranslation = ''
+    let lastNotes = ''
+
     try {
-      result.value = await translateApi({
-        text,
-        direction: direction.value,
-        provider: useProvider,
-        apiKey: providerConfig.apiKey,
-        model: providerConfig.model,
-        baseURL: providerConfig.baseURL,
-        apiFormat: providerConfig.apiFormat
-      })
+      for (let i = 0; i < chunks.length; i++) {
+        const r = await translateApi({ text: chunks[i], ...callOpts })
+        fullTranslation += (fullTranslation ? '\n' : '') + r.translation
+        lastNotes = r.notes || lastNotes
+        // Update result incrementally so the UI renders partial translations.
+        result.value = { translation: fullTranslation, notes: lastNotes }
+      }
     } catch (err) {
+      // Keep partial results if we have them; show error alongside.
       error.value = err.message
     } finally {
       loading.value = false

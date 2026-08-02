@@ -74,7 +74,8 @@
           </div>
         </div>
         <div class="result-translation">{{ store.result.translation }}</div>
-        <div v-if="store.result.notes" class="result-notes">{{ store.result.notes }}</div>
+        <div v-if="store.loading" class="translating-hint">翻译中...</div>
+        <div v-if="!store.loading && store.result.notes" class="result-notes">{{ store.result.notes }}</div>
         <div v-if="speakHint" class="speak-hint">{{ speakHint }}</div>
       </div>
     </div>
@@ -238,6 +239,7 @@ textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6p
 .speak-row { display: flex; gap: 8px; margin-bottom: 12px; }
 .speak-group { display: flex; gap: 6px; }
 .speak-hint { font-size: 12px; color: #e53935; margin-top: 6px; }
-.result-translation { font-size: 15px; line-height: 1.6; color: #333; margin-bottom: 12px; }
+.result-translation { font-size: 15px; line-height: 1.6; color: #333; margin-bottom: 12px; white-space: pre-wrap; word-break: break-word; }
+.translating-hint { color: #888; font-size: 13px; padding: 4px 0 8px; }
 .result-notes { font-size: 13px; color: #666; line-height: 1.5; background: #f9f9f9; padding: 8px 12px; border-radius: 6px; }
 </style>
