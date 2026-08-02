@@ -37,7 +37,7 @@
   "content_scripts": [
     {
       "js": [
-        "assets/translate-panel.js-loader-DsATwdda.js",
+        "assets/translate-panel.js-loader-CdirMKzL.js",
         "assets/inline-translate.js-loader-BOaVAg2E.js"
       ],
       "matches": [
@@ -59,7 +59,7 @@
         "src/pages/settings/index.html",
         "assets/inline-translate-C18GrOMB.js",
         "assets/inline-translate.js-B-Uy8a5d.js",
-        "assets/translate-panel.js-BBGvDo_X.js"
+        "assets/translate-panel.js-CM2ALoba.js"
       ],
       "use_dynamic_url": false
     }

@@ -126,6 +126,54 @@ async function doTranslate(text, direction) {
   return response.result
 }
 
+// --- Incremental translation for long text ---
+// Splits text into ~500-char chunks at sentence boundaries, translates each
+// sequentially, and calls onPartial after each chunk so the UI can render
+// results incrementally.
+const CHUNK_SIZE = 500
+
+function splitTextIntoChunks(text, maxSize = CHUNK_SIZE) {
+  if (text.length <= maxSize) return [text]
+  // Split at sentence-ending punctuation or newlines.
+  const sentences = text.split(/(?<=[.!?。！？\n])\s*/)
+  const chunks = []
+  let current = ''
+  for (const sentence of sentences) {
+    if (!sentence) continue
+    if (current && (current.length + sentence.length + 1) > maxSize) {
+      chunks.push(current)
+      current = sentence
+    } else {
+      current = current ? current + ' ' + sentence : sentence
+    }
+    // Hard-split very long single sentences.
+    while (current.length > maxSize * 1.5) {
+      chunks.push(current.slice(0, maxSize))
+      current = current.slice(maxSize)
+    }
+  }
+  if (current) chunks.push(current)
+  return chunks
+}
+
+async function doTranslateIncremental(text, direction, onPartial) {
+  const chunks = splitTextIntoChunks(text)
+  if (chunks.length <= 1) {
+    const result = await doTranslate(text, direction)
+    onPartial(result, true)
+    return result
+  }
+  let fullTranslation = ''
+  let lastNotes = ''
+  for (let i = 0; i < chunks.length; i++) {
+    const result = await doTranslate(chunks[i], direction)
+    fullTranslation += (fullTranslation ? '\n' : '') + result.translation
+    lastNotes = result.notes || lastNotes
+    onPartial({ translation: fullTranslation, notes: lastNotes }, i === chunks.length - 1)
+  }
+  return { translation: fullTranslation, notes: lastNotes }
+}
+
 // --- Panel ---
 function removeExistingPanel() {
   document.getElementById(PANEL_HOST_ID)?.remove()
@@ -186,26 +234,47 @@ function showLoading(shadow) {
   shadow.querySelector('.body').innerHTML = '<div class="loading">翻译中...</div>'
 }
 
-function showResult(shadow, result, truncated) {
+// Renders translation results incrementally. On first call, creates the
+// result container with a trailing loading indicator. On subsequent calls,
+// updates the text in place. When isComplete, removes the loading
+// indicator and adds notes + speak buttons.
+function showIncrementalResult(shadow, partial, isComplete, truncated) {
   const body = shadow.querySelector('.body')
-  const truncatedHtml = truncated
-    ? '<div class="truncated-hint">页面内容较长，仅翻译前 5000 字</div>'
-    : ''
-  const notesHtml = result.notes
-    ? `<div class="result-notes">${escapeHtml(result.notes)}</div>`
-    : ''
-  body.innerHTML = `
-    ${truncatedHtml}
-    <div class="result-text">${escapeHtml(result.translation)}</div>
-    ${notesHtml}
-    <div class="speak-row">
-      <button class="speak-btn" data-key="result-normal" data-rate="1">朗读</button>
-      <button class="speak-btn" data-key="result-slow" data-rate="0.6">慢速</button>
-    </div>
-    <div class="speak-hint"></div>
-  `
 
-  const translation = result.translation
+  // First call: build the structure.
+  if (!body.querySelector('.result-text')) {
+    const truncatedHtml = truncated
+      ? '<div class="truncated-hint">页面内容较长，仅翻译前 5000 字</div>'
+      : ''
+    body.innerHTML = `
+      ${truncatedHtml}
+      <div class="result-text"></div>
+      <div class="loading incremental-loading">翻译中...</div>
+    `
+  }
+
+  // Update translation text in place (avoids flicker).
+  body.querySelector('.result-text').textContent = partial.translation
+  body.scrollTop = body.scrollHeight
+
+  if (isComplete) {
+    body.querySelector('.incremental-loading')?.remove()
+    const notesHtml = partial.notes
+      ? `<div class="result-notes">${escapeHtml(partial.notes)}</div>`
+      : ''
+    const speakHtml = `
+      <div class="speak-row">
+        <button class="speak-btn" data-key="result-normal" data-rate="1">朗读</button>
+        <button class="speak-btn" data-key="result-slow" data-rate="0.6">慢速</button>
+      </div>
+      <div class="speak-hint"></div>
+    `
+    body.insertAdjacentHTML('beforeend', notesHtml + speakHtml)
+    wireSpeakButtons(shadow, partial.translation)
+  }
+}
+
+function wireSpeakButtons(shadow, translation) {
   shadow.querySelectorAll('.speak-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const key = btn.dataset.key
@@ -222,6 +291,18 @@ function showResult(shadow, result, truncated) {
 
 function showError(shadow, message) {
   shadow.querySelector('.body').innerHTML = `<div class="error">${escapeHtml(message)}</div>`
+}
+
+// If partial results exist, finalize them and append the error below.
+// Otherwise, show the error as a full-page replacement.
+function handleIncrementalError(shadow, err) {
+  const body = shadow.querySelector('.body')
+  if (body && body.querySelector('.result-text')) {
+    body.querySelector('.incremental-loading')?.remove()
+    body.insertAdjacentHTML('beforeend', `<div class="error">${escapeHtml(err.message)}</div>`)
+  } else {
+    showError(shadow, err.message)
+  }
 }
 
 function updateSpeakButtons(shadow) {
@@ -371,9 +452,10 @@ function showSelectionPopper(rect, text) {
     hideSelectionPopper()
     const shadow = createPanelHost('selection')
     showLoading(shadow)
-    doTranslate(text, 'auto')
-      .then(result => showResult(shadow, result, false))
-      .catch(err => showError(shadow, err.message))
+    doTranslateIncremental(text, 'auto', (partial, isLast) => {
+      showIncrementalResult(shadow, partial, isLast, false)
+    })
+      .catch(err => handleIncrementalError(shadow, err))
   })
 
   shadow.querySelector('[data-action="read"]').addEventListener('click', () => {
@@ -423,9 +505,10 @@ chrome.runtime.onMessage.addListener((message) => {
     if (!text) return
     const shadow = createPanelHost('selection')
     showLoading(shadow)
-    doTranslate(text, 'auto')
-      .then(result => showResult(shadow, result, false))
-      .catch(err => showError(shadow, err.message))
+    doTranslateIncremental(text, 'auto', (partial, isLast) => {
+      showIncrementalResult(shadow, partial, isLast, false)
+    })
+      .catch(err => handleIncrementalError(shadow, err))
     return
   }
 
@@ -434,9 +517,10 @@ chrome.runtime.onMessage.addListener((message) => {
     if (!text) return
     const shadow = createPanelHost('corner')
     showLoading(shadow)
-    doTranslate(text, 'auto')
-      .then(result => showResult(shadow, result, truncated))
-      .catch(err => showError(shadow, err.message))
+    doTranslateIncremental(text, 'auto', (partial, isLast) => {
+      showIncrementalResult(shadow, partial, isLast, truncated)
+    })
+      .catch(err => handleIncrementalError(shadow, err))
     return
   }
 
