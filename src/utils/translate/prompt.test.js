@@ -17,7 +17,7 @@ describe('buildSystemPrompt', () => {
     for (const d of ['auto', 'zh-en', 'en-zh']) {
       expect(buildSystemPrompt(d)).toMatch(/"translation"/)
       expect(buildSystemPrompt(d)).toMatch(/"notes"/)
-      expect(buildSystemPrompt(d)).toMatch(/不要输出 JSON 以外的内容/)
+      expect(buildSystemPrompt(d)).toMatch(/只输出 JSON/)
     }
   })
   it('instructs to keep math formulas untranslated', () => {

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest'
-import { hasLatinLetters, hasCJK } from './language-detect'
+import { hasLatinLetters, hasCJK, looksLikeMath, mathSymbolRatio } from './language-detect'
 
 describe('hasLatinLetters', () => {
   it('returns true for English text', () => {
@@ -25,6 +25,71 @@ describe('hasLatinLetters', () => {
   it('handles null/undefined input', () => {
     expect(hasLatinLetters(null)).toBe(false)
     expect(hasCJK(undefined)).toBe(false)
+  })
+})
+
+describe('looksLikeMath', () => {
+  it('detects Unicode mathematical alphanumeric symbols', () => {
+    expect(looksLikeMath('𝐳 = (z₁, …, zₙ)')).toBe(true)
+    expect(looksLikeMath('𝑥')).toBe(true)
+    expect(looksLikeMath('The vector 𝐳 represents')).toBe(true)
+  })
+
+  it('detects mathematical operators', () => {
+    expect(looksLikeMath('∑ xᵢ')).toBe(true)
+    expect(looksLikeMath('√(x² + y²)')).toBe(true)
+    expect(looksLikeMath('a ≤ b ≤ c')).toBe(true)
+  })
+
+  it('detects subscripts/superscripts with operators', () => {
+    expect(looksLikeMath('z₁ + z₂ = 0')).toBe(true)
+    expect(looksLikeMath('x² = 4')).toBe(true)
+  })
+
+  it('detects LaTeX commands', () => {
+    expect(looksLikeMath('\\frac{a}{b}')).toBe(true)
+    expect(looksLikeMath('\\sum_{i=0}^{n}')).toBe(true)
+  })
+
+  it('detects function-call notation with math functions', () => {
+    expect(looksLikeMath('softmax(QK^T/√d)')).toBe(true)
+    expect(looksLikeMath('sqrt(x)')).toBe(true)
+    expect(looksLikeMath('exp(x) + log(y)')).toBe(true)
+  })
+
+  it('detects standalone math terms', () => {
+    expect(looksLikeMath('sqrt')).toBe(true)
+    expect(looksLikeMath('softmax')).toBe(true)
+    expect(looksLikeMath('ReLU')).toBe(true)
+  })
+
+  it('returns false for natural language', () => {
+    expect(looksLikeMath('The softmax function is defined as follows')).toBe(false)
+    expect(looksLikeMath('Hello World')).toBe(false)
+    expect(looksLikeMath('This is a normal paragraph about machine learning')).toBe(false)
+  })
+
+  it('returns false for empty/null input', () => {
+    expect(looksLikeMath('')).toBe(false)
+    expect(looksLikeMath(null)).toBe(false)
+    expect(looksLikeMath(undefined)).toBe(false)
+  })
+})
+
+describe('mathSymbolRatio', () => {
+  it('returns 0 for plain text', () => {
+    expect(mathSymbolRatio('Hello World')).toBe(0)
+    expect(mathSymbolRatio('这是一个测试')).toBe(0)
+  })
+
+  it('returns high ratio for formula text', () => {
+    const formula = '𝐳 = (z₁, …, zₙ)'
+    expect(mathSymbolRatio(formula)).toBeGreaterThan(0.1)
+  })
+
+  it('returns low ratio for text with occasional math', () => {
+    const text = 'The softmax function is defined as softmax(QK^T/√d) and is widely used'
+    expect(mathSymbolRatio(text)).toBeLessThan(0.05)
   })
 })
 

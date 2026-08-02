@@ -87,6 +87,35 @@ function parseAnthropicResponse(data) {
   return content
 }
 
+// Try to extract a JSON object from model output.
+// Models sometimes wrap JSON in markdown code fences (```json ... ```) or
+// add explanatory text. This strips those wrappers before JSON.parse.
+function extractJSON(content) {
+  if (!content) return null
+  let text = content.trim()
+
+  // Strip markdown code fences: ```json\n...\n``` or ```\n...\n```
+  const fenceMatch = text.match(/^```(?:json)?\s*\n?([\s\S]*?)\n?```\s*$/)
+  if (fenceMatch) {
+    text = fenceMatch[1].trim()
+  }
+
+  // If there's extra text around the JSON, extract first { to last }.
+  if (!text.startsWith('{')) {
+    const first = text.indexOf('{')
+    const last = text.lastIndexOf('}')
+    if (first !== -1 && last !== -1 && last > first) {
+      text = text.slice(first, last + 1)
+    }
+  }
+
+  try {
+    return JSON.parse(text)
+  } catch {
+    return null
+  }
+}
+
 export async function translate({ text, direction, provider, apiKey, model, baseURL, apiFormat }) {
   if (!text || !text.trim()) throw new Error('文本不能为空')
   if (!provider) throw new Error('未选择翻译模型')
@@ -156,11 +185,10 @@ export async function translate({ text, direction, provider, apiKey, model, base
     : parseOpenAIResponse(data)
   if (!content) throw new Error('模型返回内容为空')
 
-  let parsed
-  try {
-    parsed = JSON.parse(content)
-  } catch {
-    throw new Error('模型未返回有效 JSON 格式')
+  const parsed = extractJSON(content)
+  if (!parsed) {
+    const preview = content.slice(0, 120).replace(/\n/g, ' ')
+    throw new Error(`模型未返回有效 JSON 格式：${preview}`)
   }
 
   if (!parsed.translation) throw new Error('模型返回缺少 translation 字段')

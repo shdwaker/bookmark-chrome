@@ -6,7 +6,7 @@
 // Reimplemented from scratch -- algorithm inspired by immersive-translate's
 // getPiecesToTranslate, but written independently in modern ES module syntax.
 
-import { hasLatinLetters, hasCJK } from './language-detect.js'
+import { hasLatinLetters, hasCJK, looksLikeMath } from './language-detect.js'
 
 export const INLINE_TAGS = new Set([
   'A', 'B', 'I', 'SPAN', 'STRONG', 'EM', 'SUB', 'SUP', 'SMALL',
@@ -160,6 +160,7 @@ function walkAndCollect(node, direction, pieces, nextId) {
       if (trimmed.length === 0) return
 
       if (shouldSkipByLanguage(trimmed, direction)) return
+      if (looksLikeMath(trimmed)) return
 
       const blockEl = currentBlockEl || findBlockAncestor(node)
 

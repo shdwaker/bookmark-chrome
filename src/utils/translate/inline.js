@@ -1,6 +1,8 @@
 // Pure helpers for inline page translation: concurrency pool and paragraph
 // collection. Tested in isolation; DOM operations live in the content script.
 
+import { mathSymbolRatio, looksLikeMath } from './immersive/language-detect.js'
+
 export function createPool({ items, worker, concurrency = 3, shouldCancel }) {
   let index = 0
   let cancelled = false
@@ -102,6 +104,9 @@ export function collectParagraphs(root, limit = 100, options = {}) {
     const isHeading = /^H[1-6]$/.test(el.tagName)
     if (!isHeading && text.length < MIN_TEXT_LENGTH) continue
     if (shouldSkipByLanguage(text, direction)) continue
+    // Skip paragraphs that are primarily math formulas (high ratio of
+    // Unicode math symbols) or that look like a standalone formula.
+    if (mathSymbolRatio(text) > 0.1 || looksLikeMath(text)) continue
 
     counter++
     result.push({
