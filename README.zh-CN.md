@@ -28,8 +28,13 @@
   - 独立的 OneTab 页面用于浏览、恢复、删除已保存记录
 
 ### AI 翻译
-- **页面内翻译面板** - 通过内容脚本注入的面板，在任意网页上直接翻译选中文本或整页
-- **多服务商支持** - 阿里千问、火山豆包、智谱 GLM、月之暗面 Kimi
+- **三种翻译模式**，通过右键菜单或选中文本弹出按钮触发：
+  - **弹框翻译** - 在浮动 Shadow DOM 面板中翻译选中文本或整页内容
+  - **内联翻译** - 逐段翻译页面内容，在每个块元素下方插入译文；超过 100 段时显示"继续翻译"按钮
+  - **沉浸式翻译** - 基于克隆的双语显示，支持三种切换模式：双语（原文+译文）、仅译文、仅原文；支持暂停/继续、动态内容监听（MutationObserver 适配 SPA）、IndexedDB 翻译缓存
+- **增量渲染** - 长文本按句号边界拆分为约 500 字符的片段，逐段翻译并即时渲染；每段翻译完成即显示，无需等待全部完成
+- **数学公式保护** - 跳过 KaTeX、MathJax、MathML 容器；检测 Unicode 数学符号（𝐳、z₁、x²、∑、∫、√）、LaTeX 命令和函数符号（softmax、sqrt），公式不被翻译
+- **多服务商支持** - 阿里千问、火山豆包、智谱 GLM、月之暗面 Kimi；支持 OpenAI 和 Anthropic Messages 两种 API 格式
 - **自定义服务商配置** - 可覆盖 baseURL、模型、目标语言
 - **朗读（TTS）** - 朗读原文或译文，支持 0.6× 慢速模式，便于语言学习
 
@@ -75,7 +80,8 @@
 - **收藏文件夹** - 收藏常用文件夹以便快速访问。
 - **浏览历史** - 打开浏览历史弹窗查看按站点和按 URL 的访问历史。
 - **OneTab** - 在全部页签面板中点击 OneTab 按钮（全局或单卡片）将符合条件的页签整理为可恢复列表；打开 OneTab 页面浏览、恢复或删除已保存记录。
-- **AI 翻译** - 点击顶部导航的 AI 翻译按钮打开翻译弹窗，或在任意网页使用注入面板；在设置中配置服务商、API Key 和目标语言。
+- **AI 翻译** - 在任意页面右键点击"AI翻译"，子菜单包括：翻译整个页面、内联翻译页面、沉浸式翻译、翻译选中文字、朗读；也可选中文本触发浮动按钮。点击顶部导航的 AI 翻译按钮可打开翻译弹窗。
+- **翻译模式** - 弹框（浮动面板）、内联（逐段注入）、沉浸式（克隆双语+模式切换），三种模式均支持长文本增量渲染。
 - **朗读** - 在翻译面板使用扬声器按钮朗读文本，可切换 0.6× 慢速模式辅助语言学习。
 - **设置** - 点击齿轮图标进入设置页。
 
@@ -100,6 +106,7 @@
 | `storage`   | 持久化设置、收藏文件夹、OneTab 记录 |
 | `tabs`      | 列出打开的页签、OneTab 关闭页签、监听访问追踪 |
 | `alarms`    | 定时清理过期访问记录 |
+| `contextMenus` | 右键"AI翻译"子菜单（翻译页面、内联、沉浸式、选中文字、朗读） |
 | `history`   | 已在 manifest 声明，代码尚未使用（预留） |
 
 `host_permissions` 为翻译服务商端点（千问、豆包、GLM、Kimi）声明，以便扩展能直接调用翻译 API。
@@ -125,7 +132,9 @@ bookmark-chrome/
 │   ├── background/
 │   │   └── index.js               # Service Worker（访问追踪、定时任务）
 │   ├── content/
-│   │   └── translate-panel.js     # 注入页面的内联翻译面板
+│   │   ├── translate-panel.js     # 弹框/整页翻译面板 + 消息路由
+│   │   ├── inline-translate.js    # 内联逐段翻译
+│   │   └── immersive-translate.js # 沉浸式双语翻译编排器
 │   ├── pages/
 │   │   ├── main/                   # 新标签页
 │   │   │   ├── App.vue
@@ -151,7 +160,7 @@ bookmark-chrome/
 │   ├── stores/
 │   │   ├── bookmarks.js           # Pinia：书签状态
 │   │   ├── settings.js            # Pinia：设置状态
-│   │   └── translate.js           # Pinia：翻译状态
+│   │   └── translate.js           # Pinia：翻译状态（增量渲染）
 │   └── utils/
 │       ├── bookmark-api.js        # Chrome 书签 API 封装
 │       ├── storage.js              # 设置存储工具
@@ -164,7 +173,15 @@ bookmark-chrome/
 │           ├── providers.js       # 翻译服务商注册表
 │           ├── prompt.js          # 翻译提示词模板
 │           ├── transport.js       # 服务商无关的传输层
-│           └── translate-api.js   # 翻译 API 调用
+│           ├── translate-api.js   # 翻译 API 调用 + JSON 提取
+│           ├── chunk.js           # 文本分块（增量渲染）
+│           ├── inline.js          # 内联翻译工具（并发池、段落收集）
+│           └── immersive/         # 沉浸式翻译工具集
+│               ├── paragraph-detector.js  # DOM 树遍历段落检测
+│               ├── cache.js               # IndexedDB 翻译缓存
+│               ├── dom-injector.js        # 克隆/注入/模式切换/清理
+│               ├── language-detect.js     # 拉丁/中日韩/数学检测
+│               └── site-rules.js          # 站点专属容器选择器
 ├── manifest.json
 ├── vite.config.js
 ├── package.json

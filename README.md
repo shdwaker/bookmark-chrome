@@ -28,8 +28,13 @@ English | [简体中文](README.zh-CN.md)
   - Dedicated OneTab page for browsing, restoring, and deleting saved records
 
 ### AI translation
-- **Inline translation panel** - translate selected text or the current page directly on any webpage via a content-script panel
-- **Multiple providers** - Alibaba Qwen, Volcengine Doubao, Zhipu GLM, Moonshot Kimi
+- **Three translation modes** via right-click context menu or selection popper:
+  - **Popup translation** - translate selected text or the entire page in a floating Shadow DOM panel
+  - **Inline translation** - translate the page paragraph-by-paragraph, inserting translations below each block element; includes a "继续翻译" (continue) button for pages with 100+ paragraphs
+  - **Immersive translation** - clone-based bilingual display with three toggle modes: dual (original + translation), translated only, or original only; supports pause/resume, dynamic content monitoring (MutationObserver for SPAs), and an IndexedDB translation cache
+- **Incremental rendering** - long text is split into ~500-char chunks at sentence boundaries and translated sequentially; results appear in the panel as each chunk completes, so you see progress immediately instead of waiting for the full response
+- **Math formula protection** - skips KaTeX, MathJax, and MathML containers; detects Unicode math symbols (𝐳, z₁, x², ∑, ∫, √), LaTeX commands, and function notation (softmax, sqrt) so formulas are never translated
+- **Multiple providers** - Alibaba Qwen, Volcengine Doubao, Zhipu GLM, Moonshot Kimi; supports both OpenAI and Anthropic Messages API formats
 - **Custom provider config** - override baseURL, model, and target language
 - **Text-to-Speech** - listen to the original or translated text with a slow-speed (0.6×) option
 
@@ -75,7 +80,8 @@ The repository ships a built `dist/` directory, so you can run the extension wit
 - **Favorite folders** - star a folder for quick access.
 - **Browsing history** - open the history modal to see per-site and per-URL visits.
 - **OneTab** - in the all-tabs panel, click the OneTab button (global or per-card) to sweep eligible tabs into a restorable list; open the OneTab page to browse, restore, or delete saved records.
-- **AI translation** - click the AI-translation button in the top nav to open the translate modal, or use the inline panel on any webpage; configure provider, API key, and target language in settings.
+- **AI translation** - right-click any page for "AI翻译" with submenu (translate page, inline translate, immersive translate, translate selection, read aloud); or select text to trigger the floating popper. Click the AI-translation button in the top nav to open the translate modal.
+- **Translation modes** - popup (floating panel), inline (paragraph-by-paragraph injection), immersive (clone-based bilingual with mode toggle). All three support incremental rendering for long text.
 - **TTS** - use the speaker buttons in the translate panel to read text aloud; toggle slow-speed (0.6×) for language learning.
 - **Settings** - click the gear icon to open the settings page.
 
@@ -100,6 +106,7 @@ Open the settings page (gear icon) to configure:
 | `storage`   | Persist settings, favorite folders, and OneTab records |
 | `tabs`      | List open tabs, close tabs for OneTab, listen for visit tracing |
 | `alarms`    | Periodic cleanup of expired trace records |
+| `contextMenus` | Right-click "AI翻译" submenu (translate page, inline, immersive, selection, read aloud) |
 | `history`   | Declared in the manifest, not yet used in code (reserved) |
 
 `host_permissions` are declared for the translation provider endpoints (Qwen, Doubao, GLM, Kimi) so the translate API can be called from the extension.
@@ -125,7 +132,9 @@ bookmark-chrome/
 │   ├── background/
 │   │   └── index.js               # Service worker (visit tracing, alarms)
 │   ├── content/
-│   │   └── translate-panel.js     # Inline translation panel injected into pages
+│   │   ├── translate-panel.js     # Popup/page translation panel + message router
+│   │   ├── inline-translate.js    # Inline paragraph-by-paragraph translation
+│   │   └── immersive-translate.js # Immersive bilingual translation orchestrator
 │   ├── pages/
 │   │   ├── main/                   # New-tab page
 │   │   │   ├── App.vue
@@ -151,7 +160,7 @@ bookmark-chrome/
 │   ├── stores/
 │   │   ├── bookmarks.js           # Pinia: bookmark state
 │   │   ├── settings.js            # Pinia: settings state
-│   │   └── translate.js           # Pinia: translation state
+│   │   └── translate.js           # Pinia: translation state (incremental)
 │   └── utils/
 │       ├── bookmark-api.js        # Chrome bookmarks API wrapper
 │       ├── storage.js              # Settings storage helpers
@@ -164,7 +173,15 @@ bookmark-chrome/
 │           ├── providers.js       # Translation provider registry
 │           ├── prompt.js          # Translation prompt templates
 │           ├── transport.js       # Provider-agnostic transport layer
-│           └── translate-api.js   # Translation API calls
+│           ├── translate-api.js   # Translation API calls + JSON extraction
+│           ├── chunk.js           # Text chunking for incremental rendering
+│           ├── inline.js          # Inline translation helpers (pool, collector)
+│           └── immersive/         # Immersive translation utilities
+│               ├── paragraph-detector.js  # DOM tree walker for piece detection
+│               ├── cache.js               # IndexedDB translation cache
+│               ├── dom-injector.js        # Clone/inject/mode-switch/cleanup
+│               ├── language-detect.js     # Latin/CJK/math detection
+│               └── site-rules.js          # Per-site container selectors
 ├── manifest.json
 ├── vite.config.js
 ├── package.json
