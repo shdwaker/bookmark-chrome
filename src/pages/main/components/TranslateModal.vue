@@ -41,6 +41,28 @@
         >
           {{ playingKey === 'input-slow' ? '停止' : '慢速原文' }}
         </button>
+        <button
+          v-if="hasInputEnglish"
+          class="speak-btn"
+          :class="{ active: inputSyllableMode }"
+          @click="inputSyllableMode = !inputSyllableMode"
+        >
+          {{ inputSyllableMode ? '原文' : '音节' }}
+        </button>
+      </div>
+
+      <div v-if="inputSyllableMode && hasInputEnglish" class="syllable-preview">
+        <template v-for="(seg, i) in inputSyllableSegments" :key="i">
+          <span v-if="seg.isWord" class="syllable-word" :data-word="seg.word">
+            <span
+              v-for="(syl, j) in seg.syllables"
+              :key="j"
+              class="syllable"
+              :style="{ backgroundColor: SYLLABLE_COLORS[j % SYLLABLE_COLORS.length] }"
+            >{{ syl.text }}</span>
+          </span>
+          <template v-else>{{ seg.text }}</template>
+        </template>
       </div>
 
       <button
@@ -71,9 +93,30 @@
             >
               {{ playingKey === 'result-slow' ? '停止' : '慢速' }}
             </button>
+            <button
+              v-if="hasEnglish"
+              class="speak-btn"
+              :class="{ active: syllableMode }"
+              @click="syllableMode = !syllableMode"
+            >
+              {{ syllableMode ? '原文' : '音节' }}
+            </button>
           </div>
         </div>
-        <div class="result-translation">{{ store.result.translation }}</div>
+        <div v-if="syllableMode" class="result-translation">
+          <template v-for="(seg, i) in syllableSegments" :key="i">
+            <span v-if="seg.isWord" class="syllable-word" :data-word="seg.word">
+              <span
+                v-for="(syl, j) in seg.syllables"
+                :key="j"
+                class="syllable"
+                :style="{ backgroundColor: SYLLABLE_COLORS[j % SYLLABLE_COLORS.length] }"
+              >{{ syl.text }}</span>
+            </span>
+            <template v-else>{{ seg.text }}</template>
+          </template>
+        </div>
+        <div v-else class="result-translation">{{ store.result.translation }}</div>
         <div v-if="store.loading" class="translating-hint">翻译中...</div>
         <div v-if="!store.loading && store.result.notes" class="result-notes">{{ store.result.notes }}</div>
         <div v-if="speakHint" class="speak-hint">{{ speakHint }}</div>
@@ -83,10 +126,11 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useTranslateStore } from '@/stores/translate'
 import { getSettings } from '@/utils/storage'
 import { PROVIDERS } from '@/utils/translate/providers'
+import { splitSyllables } from '@/utils/translate/syllable-splitter'
 
 defineEmits(['close'])
 const store = useTranslateStore()
@@ -98,7 +142,53 @@ const configuredProviders = ref([])
 const playingKey = ref('')
 const speakHint = ref('')
 const voiceSettings = ref({ voiceChinese: '', voiceEnglish: '' })
+const syllableMode = ref(false)
+const inputSyllableMode = ref(false)
 let voices = []
+
+const SYLLABLE_COLORS = [
+  '#ffd6d6', '#d6e4ff', '#d6ffd6', '#ffe8d6',
+  '#e8d6ff', '#d6f5ff', '#fff5d6', '#ffd6e8'
+]
+
+function computeSyllableSegments(text) {
+  const segments = []
+  const regex = /[a-zA-Z][a-zA-Z']*/g
+  let lastIndex = 0
+  let match
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      segments.push({ isWord: false, text: text.slice(lastIndex, match.index) })
+    }
+    const word = match[0]
+    if (word.length <= 1) {
+      segments.push({ isWord: false, text: word })
+    } else {
+      segments.push({ isWord: true, word, syllables: splitSyllables(word) })
+    }
+    lastIndex = match.index + word.length
+  }
+  if (lastIndex < text.length) {
+    segments.push({ isWord: false, text: text.slice(lastIndex) })
+  }
+  return segments
+}
+
+const hasEnglish = computed(() =>
+  store.result && /[a-zA-Z]{2,}/.test(store.result.translation)
+)
+
+const syllableSegments = computed(() =>
+  store.result ? computeSyllableSegments(store.result.translation) : []
+)
+
+const hasInputEnglish = computed(() =>
+  /[a-zA-Z]{2,}/.test(inputText.value)
+)
+
+const inputSyllableSegments = computed(() =>
+  inputText.value ? computeSyllableSegments(inputText.value) : []
+)
 
 function loadVoices() {
   if (!('speechSynthesis' in window)) return
@@ -136,6 +226,7 @@ async function handleTranslate() {
   store.setProvider(provider.value)
   store.setDirection(direction.value)
   stopSpeak()
+  syllableMode.value = false
   await store.translate(inputText.value)
 }
 
@@ -236,10 +327,44 @@ textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6p
 .speak-btn { background: transparent; border: 1px solid #4a90d9; color: #4a90d9; padding: 3px 10px; border-radius: 4px; font-size: 12px; cursor: pointer; }
 .speak-btn:disabled { border-color: #ccc; color: #ccc; cursor: not-allowed; }
 .speak-btn.speaking { background: #4a90d9; color: white; }
+.speak-btn.active { background: #4a90d9; color: white; }
 .speak-row { display: flex; gap: 8px; margin-bottom: 12px; }
 .speak-group { display: flex; gap: 6px; }
 .speak-hint { font-size: 12px; color: #e53935; margin-top: 6px; }
 .result-translation { font-size: 15px; line-height: 1.6; color: #333; margin-bottom: 12px; white-space: pre-wrap; word-break: break-word; }
+.syllable-preview { font-size: 15px; line-height: 1.8; color: #333; margin-bottom: 12px; padding: 10px; background: #f9f9f9; border-radius: 6px; white-space: pre-wrap; word-break: break-word; }
+.syllable-word {
+  display: inline-block;
+  margin: 1px 3px;
+  position: relative;
+  cursor: default;
+  border-radius: 4px;
+}
+.syllable-word:hover { background: rgba(74, 144, 217, 0.1); }
+.syllable {
+  display: inline-block;
+  padding: 1px 5px;
+  margin: 0 1px;
+  border-radius: 3px;
+  font-size: 14px;
+  transition: transform 0.15s;
+}
+.syllable-word:hover .syllable { transform: translateY(-1px); }
+.syllable-word[data-word]:hover::after {
+  content: attr(data-word);
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #333;
+  color: #fff;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  white-space: nowrap;
+  z-index: 100;
+  pointer-events: none;
+}
 .translating-hint { color: #888; font-size: 13px; padding: 4px 0 8px; }
 .result-notes { font-size: 13px; color: #666; line-height: 1.5; background: #f9f9f9; padding: 8px 12px; border-radius: 6px; }
 </style>

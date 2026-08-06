@@ -37,7 +37,7 @@
   "content_scripts": [
     {
       "js": [
-        "assets/translate-panel.js-loader-CRY_1Qcw.js",
+        "assets/translate-panel.js-loader-CAxrby0e.js",
         "assets/inline-translate.js-loader-BOaVAg2E.js"
       ],
       "matches": [
@@ -58,9 +58,9 @@
         "src/pages/main/index.html",
         "src/pages/settings/index.html",
         "assets/inline-translate-C18GrOMB.js",
-        "assets/chunk-CJDZNiOL.js",
+        "assets/syllable-splitter-DmFjut49.js",
         "assets/inline-translate.js-B-Uy8a5d.js",
-        "assets/translate-panel.js-Bdw3F8MS.js"
+        "assets/translate-panel.js-D8M9kg2n.js"
       ],
       "use_dynamic_url": false
     }

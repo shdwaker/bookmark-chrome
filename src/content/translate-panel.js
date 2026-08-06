@@ -16,6 +16,7 @@ const PAGE_TEXT_LIMIT = 5000
 import { startInlineTranslation, clearInline } from './inline-translate.js'
 import { startImmersive, clearImmersive } from './immersive-translate.js'
 import { splitTextIntoChunks } from '../utils/translate/chunk.js'
+import { splitSyllables } from '../utils/translate/syllable-splitter.js'
 
 // --- Settings cache (refreshed via storage.onChanged) ---
 const cachedSettings = {
@@ -214,23 +215,49 @@ function showLoading(shadow) {
 // result container with a trailing loading indicator. On subsequent calls,
 // updates the text in place. When isComplete, removes the loading
 // indicator and adds notes + speak buttons.
-function showIncrementalResult(shadow, partial, isComplete, truncated) {
+function showIncrementalResult(shadow, partial, isComplete, truncated, originalText) {
   const body = shadow.querySelector('.body')
 
   // First call: build the structure.
   if (!body.querySelector('.result-text')) {
+    // Original text section (only for selection translate with English text).
+    const showOriginal = originalText && /[a-zA-Z]{2,}/.test(originalText)
+    const originalHtml = showOriginal
+      ? `<div class="original-section">
+           <div class="section-row">
+             <span class="section-label">原文</span>
+             <button class="speak-btn syllable-btn" data-target="original">音节</button>
+           </div>
+           <div class="original-text"></div>
+           <div class="speak-row">
+             <button class="speak-btn" data-key="original-normal" data-rate="1">朗读原文</button>
+             <button class="speak-btn" data-key="original-slow" data-rate="0.6">慢速原文</button>
+           </div>
+         </div>`
+      : ''
     const truncatedHtml = truncated
       ? '<div class="truncated-hint">页面内容较长，仅翻译前 5000 字</div>'
       : ''
     body.innerHTML = `
+      ${originalHtml}
       ${truncatedHtml}
       <div class="result-text"></div>
       <div class="loading incremental-loading">翻译中...</div>
     `
+    if (showOriginal) {
+      const origEl = body.querySelector('.original-text')
+      origEl.dataset.fullText = originalText
+      origEl.textContent = originalText
+      wireSyllableToggle(shadow, 'original')
+      wireSpeakButtons(shadow, originalText, '.original-section')
+    }
   }
 
   // Update translation text in place (avoids flicker).
-  body.querySelector('.result-text').textContent = partial.translation
+  const resultEl = body.querySelector('.result-text')
+  const syllableMode = body.querySelector('.syllable-btn[data-target="result"]')?.classList.contains('active')
+  renderResultText(resultEl, partial.translation, !!syllableMode)
+  resultEl.dataset.fullText = partial.translation
   body.scrollTop = body.scrollHeight
 
   if (isComplete) {
@@ -238,20 +265,43 @@ function showIncrementalResult(shadow, partial, isComplete, truncated) {
     const notesHtml = partial.notes
       ? `<div class="result-notes">${escapeHtml(partial.notes)}</div>`
       : ''
+    // Show syllable toggle only if the translation contains English words.
+    const hasEnglish = /[a-zA-Z]{2,}/.test(partial.translation)
+    const syllableBtnHtml = hasEnglish
+      ? '<button class="speak-btn syllable-btn" data-target="result">音节</button>'
+      : ''
     const speakHtml = `
       <div class="speak-row">
         <button class="speak-btn" data-key="result-normal" data-rate="1">朗读</button>
         <button class="speak-btn" data-key="result-slow" data-rate="0.6">慢速</button>
+        ${syllableBtnHtml}
       </div>
       <div class="speak-hint"></div>
     `
     body.insertAdjacentHTML('beforeend', notesHtml + speakHtml)
     wireSpeakButtons(shadow, partial.translation)
+    wireSyllableToggle(shadow, 'result')
   }
 }
 
-function wireSpeakButtons(shadow, translation) {
-  shadow.querySelectorAll('.speak-btn').forEach(btn => {
+function wireSyllableToggle(shadow, target) {
+  const btn = shadow.querySelector(`.syllable-btn[data-target="${target}"]`)
+  if (!btn) return
+  btn.addEventListener('click', () => {
+    const el = shadow.querySelector(target === 'original' ? '.original-text' : '.result-text')
+    if (!el) return
+    const text = el.dataset.fullText || el.textContent
+    const active = btn.classList.toggle('active')
+    btn.textContent = active ? '原文' : '音节'
+    renderResultText(el, text, active)
+  })
+}
+
+function wireSpeakButtons(shadow, text, container) {
+  const root = container ? shadow.querySelector(container) : shadow
+  if (!root) return
+  root.querySelectorAll('.speak-btn[data-key]:not([data-wired])').forEach(btn => {
+    btn.dataset.wired = '1'
     btn.addEventListener('click', () => {
       const key = btn.dataset.key
       const rate = parseFloat(btn.dataset.rate)
@@ -259,7 +309,7 @@ function wireSpeakButtons(shadow, translation) {
         stopSpeak()
         updateSpeakButtons(shadow)
       } else {
-        speak(translation, rate, key, () => updateSpeakButtons(shadow))
+        speak(text, rate, key, () => updateSpeakButtons(shadow))
       }
     })
   })
@@ -282,14 +332,18 @@ function handleIncrementalError(shadow, err) {
 }
 
 function updateSpeakButtons(shadow) {
-  shadow.querySelectorAll('.speak-btn').forEach(btn => {
+  shadow.querySelectorAll('.speak-btn[data-key]').forEach(btn => {
     const key = btn.dataset.key
     if (playingKey === key) {
       btn.classList.add('speaking')
       btn.textContent = '停止'
     } else {
       btn.classList.remove('speaking')
-      btn.textContent = btn.dataset.key === 'result-slow' ? '慢速' : '朗读'
+      const isSlow = key.endsWith('-slow')
+      const isOriginal = key.startsWith('original')
+      btn.textContent = isOriginal
+        ? (isSlow ? '慢速原文' : '朗读原文')
+        : (isSlow ? '慢速' : '朗读')
     }
   })
   const hint = shadow.querySelector('.speak-hint')
@@ -300,6 +354,51 @@ function escapeHtml(text) {
   const div = document.createElement('div')
   div.textContent = String(text)
   return div.innerHTML
+}
+
+// --- Syllable coloring for English pronunciation teaching ---
+const SYLLABLE_COLORS = [
+  '#ffd6d6', '#d6e4ff', '#d6ffd6', '#ffe8d6',
+  '#e8d6ff', '#d6f5ff', '#fff5d6', '#ffd6e8'
+]
+
+// Render translation text, optionally splitting English words into colored
+// syllable blocks. Non-English text (Chinese, punctuation) is left as-is.
+function renderResultText(el, translation, syllableMode) {
+  if (!syllableMode) {
+    el.textContent = translation
+    return
+  }
+  el.innerHTML = ''
+  const regex = /[a-zA-Z][a-zA-Z']*/g
+  let lastIndex = 0
+  let match
+  while ((match = regex.exec(translation)) !== null) {
+    if (match.index > lastIndex) {
+      el.appendChild(document.createTextNode(translation.slice(lastIndex, match.index)))
+    }
+    const word = match[0]
+    if (word.length <= 1) {
+      el.appendChild(document.createTextNode(word))
+    } else {
+      const syllables = splitSyllables(word)
+      const wordSpan = document.createElement('span')
+      wordSpan.className = 'syllable-word'
+      wordSpan.dataset.word = word
+      syllables.forEach((s, i) => {
+        const sylSpan = document.createElement('span')
+        sylSpan.className = 'syllable'
+        sylSpan.style.backgroundColor = SYLLABLE_COLORS[i % SYLLABLE_COLORS.length]
+        sylSpan.textContent = s.text
+        wordSpan.appendChild(sylSpan)
+      })
+      el.appendChild(wordSpan)
+    }
+    lastIndex = match.index + word.length
+  }
+  if (lastIndex < translation.length) {
+    el.appendChild(document.createTextNode(translation.slice(lastIndex)))
+  }
 }
 
 // --- Read-aloud floating control ---
@@ -429,7 +528,7 @@ function showSelectionPopper(rect, text) {
     const shadow = createPanelHost('selection')
     showLoading(shadow)
     doTranslateIncremental(text, 'auto', (partial, isLast) => {
-      showIncrementalResult(shadow, partial, isLast, false)
+      showIncrementalResult(shadow, partial, isLast, false, text)
     })
       .catch(err => handleIncrementalError(shadow, err))
   })
@@ -482,7 +581,7 @@ chrome.runtime.onMessage.addListener((message) => {
     const shadow = createPanelHost('selection')
     showLoading(shadow)
     doTranslateIncremental(text, 'auto', (partial, isLast) => {
-      showIncrementalResult(shadow, partial, isLast, false)
+      showIncrementalResult(shadow, partial, isLast, false, text)
     })
       .catch(err => handleIncrementalError(shadow, err))
     return
@@ -569,6 +668,25 @@ const PANEL_HTML = `
   .close-btn:hover { color: #333; }
   .body { padding: 14px 16px; overflow-y: auto; flex: 1; }
   .loading { color: #888; padding: 20px 0; text-align: center; }
+  .original-section {
+    margin-bottom: 12px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #eee;
+  }
+  .section-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+  }
+  .section-label { font-size: 13px; color: #888; }
+  .original-text {
+    font-size: 15px;
+    line-height: 1.6;
+    color: #555;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
   .result-text {
     font-size: 15px;
     line-height: 1.6;
@@ -598,8 +716,41 @@ const PANEL_HTML = `
     cursor: pointer;
   }
   .speak-btn.speaking { background: #4a90d9; color: #fff; }
+  .speak-btn.syllable-btn.active { background: #4a90d9; color: #fff; }
   .speak-hint { font-size: 12px; color: #e53935; margin-top: 8px; min-height: 14px; }
   .error { color: #e53935; font-size: 13px; padding: 8px 0; line-height: 1.5; }
+  .syllable-word {
+    display: inline-block;
+    margin: 1px 3px;
+    position: relative;
+    cursor: default;
+    border-radius: 4px;
+  }
+  .syllable-word:hover { background: rgba(74, 144, 217, 0.1); }
+  .syllable {
+    display: inline-block;
+    padding: 1px 5px;
+    margin: 0 1px;
+    border-radius: 3px;
+    font-size: 14px;
+    transition: transform 0.15s;
+  }
+  .syllable-word:hover .syllable { transform: translateY(-1px); }
+  .syllable-word[data-word]:hover::after {
+    content: attr(data-word);
+    position: absolute;
+    bottom: calc(100% + 4px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: #333;
+    color: #fff;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    white-space: nowrap;
+    z-index: 100;
+    pointer-events: none;
+  }
 </style>
 <div class="panel">
   <div class="header">
