@@ -11,6 +11,7 @@
       @open-all-tabs="handleOpenAllTabs"
       @open-onetab="handleOpenOnetab"
       @open-translate="handleOpenTranslate"
+      @open-weather="showWeather = true"
     />
     <div class="main-content">
       <AllTabsPanel v-if="activeView === 'all-tabs'" />
@@ -71,6 +72,12 @@
       v-if="showTranslate"
       @close="showTranslate = false"
     />
+
+    <!-- 天气弹窗 -->
+    <WeatherModal
+      v-if="showWeather"
+      @close="showWeather = false"
+    />
   </div>
 </template>
 
@@ -86,6 +93,7 @@ import FolderEditModal from './components/FolderEditModal.vue'
 import TraceModal from './components/TraceModal.vue'
 import ConfirmModal from './components/ConfirmModal.vue'
 import TranslateModal from './components/TranslateModal.vue'
+import WeatherModal from './components/WeatherModal.vue'
 import AllTabsPanel from './components/AllTabsModal.vue'
 import OneTabPage from './components/OneTabPage.vue'
 
@@ -98,6 +106,7 @@ const showFolderEdit = ref(false)
 const showTrace = ref(false)
 const traceMode = ref('url')
 const showTranslate = ref(false)
+const showWeather = ref(false)
 const editingBookmark = ref(null)
 const editingFolder = ref(null)
 const activeView = ref('all-tabs')

@@ -116,6 +116,14 @@
         </svg>
         AI翻译
       </button>
+      <button class="nav-action-btn" @click="$emit('open-weather')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="8" cy="14" r="4"/>
+          <path d="M11.5 10.5A5.5 5.5 0 0 1 22 12.5"/>
+          <path d="M9 18h9.5a3.5 3.5 0 0 0 .5-6.96"/>
+        </svg>
+        天气
+      </button>
       <button class="nav-action-btn icon-only" @click="$emit('open-settings')" title="设置">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <circle cx="12" cy="12" r="3"/>
@@ -151,7 +159,7 @@ const props = defineProps({
   }
 })
 
-defineEmits(['select-root-folder', 'open-trace', 'open-settings', 'open-all-tabs', 'open-onetab', 'open-translate'])
+defineEmits(['select-root-folder', 'open-trace', 'open-settings', 'open-all-tabs', 'open-onetab', 'open-translate', 'open-weather'])
 
 const bookmarkStore = useBookmarkStore()
 

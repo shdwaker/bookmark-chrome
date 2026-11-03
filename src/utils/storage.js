@@ -31,6 +31,17 @@ export const DEFAULT_SETTINGS = {
   },
   onetab: {
     tabAgeDays: 7
+  },
+  weather: {
+    source: 'auto',
+    location: null,
+    favoriteCities: [
+      { label: '北京', latitude: 39.9042, longitude: 116.4074 },
+      { label: '上海', latitude: 31.2304, longitude: 121.4737 },
+      { label: '广州', latitude: 23.1291, longitude: 113.2644 },
+      { label: '深圳', latitude: 22.5431, longitude: 114.0579 },
+      { label: '杭州', latitude: 30.2741, longitude: 120.1551 }
+    ]
   }
 }
 
@@ -53,12 +64,39 @@ export function normalizeSettings(settings) {
     providers: mergedProviders
   }
   result.clock = { ...defaults.clock, ...(settings?.clock || {}) }
+  result.weather = normalizeWeatherSettings(settings?.weather)
   result.excludedDomains = Array.isArray(settings?.excludedDomains) ? settings.excludedDomains : []
   const savedTabAgeDays = Number(settings?.onetab?.tabAgeDays)
   result.onetab = {
     tabAgeDays: Number.isFinite(savedTabAgeDays) && savedTabAgeDays > 0 ? savedTabAgeDays : defaults.onetab.tabAgeDays
   }
   return result
+}
+
+function normalizeWeatherSettings(weather) {
+  const defaults = DEFAULT_SETTINGS.weather
+  const saved = weather || {}
+  const source = saved.source === 'manual' && isValidLocation(saved.location) ? 'manual' : defaults.source
+  return {
+    source,
+    location: source === 'manual' ? { ...saved.location } : null,
+    favoriteCities: Array.isArray(saved.favoriteCities)
+      ? saved.favoriteCities.filter(isValidLocation).slice(0, 12)
+      : defaults.favoriteCities
+  }
+}
+
+function isValidLocation(location) {
+  if (!location || typeof location !== 'object') return false
+  const latitude = Number(location.latitude)
+  const longitude = Number(location.longitude)
+  return Number.isFinite(latitude)
+    && latitude >= -90
+    && latitude <= 90
+    && Number.isFinite(longitude)
+    && longitude >= -180
+    && longitude <= 180
+    && Boolean(String(location.label || '').trim())
 }
 
 // 获取存储数据

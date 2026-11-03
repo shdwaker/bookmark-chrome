@@ -1,6 +1,6 @@
 {
   "name": "marktrace",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "MarkTrace - Chrome extension combining bookmark management, visit tracking, AI translation, TTS, and tab cleanup in the new tab page",
   "author": "shdwaker",
   "license": "MIT",

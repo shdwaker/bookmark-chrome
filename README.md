@@ -1,10 +1,18 @@
 # MarkTrace
 
-A Chrome extension that combines bookmark management, browsing history, AI translation, TTS, an all-tabs overview, and OneTab-style tab consolidation into the new-tab page. Replaces Chrome's default new tab with a powerful browsing workspace.
+A Chrome extension that combines bookmark management, browsing history, weather forecasts, AI translation, TTS, an all-tabs overview, and OneTab-style tab consolidation into the new-tab page. Replaces Chrome's default new tab with a powerful browsing workspace.
 
 English | [简体中文](README.zh-CN.md)
 
 <!-- screenshot: drop a gif/png here -->
+
+## v1.1.0 Release Notes
+
+- Added a 15-day weather report with trend and list views
+- Added current-location lookup, manual city switching, favorite cities, and city search
+- Added hourly temperature, precipitation, wind, and UV data for the selected date; past hours are hidden
+- Clicking a date in the 15-day report opens that date's hourly weather
+- Replaced bitmap/emoji weather icons with crisp SVG icons and adopted a compact large-modal layout
 
 ## Features
 
@@ -26,6 +34,13 @@ English | [简体中文](README.zh-CN.md)
 - **OneTab consolidation** - one click sweeps eligible tabs (older than a configurable threshold, default 7 days) into a restorable list and closes them to free memory
   - Global button in the all-tabs header, plus per-domain card buttons
   - Dedicated OneTab page for browsing, restoring, and deleting saved records
+
+### Weather forecast
+- **15-day trend report** - click “天气” in the top navigation to view 15-day max/min temperature trends, conditions, precipitation, and wind
+- **Current location** - query weather from the browser Geolocation API
+- **City switching** - expand the location panel in the report header to switch favorite cities, search for a place, or remove a saved city
+- **Hourly data by date** - click a date to view hourly temperature, precipitation, wind, and UV data; only current and future hours are shown for today
+- **Crisp vector icons** - an SVG weather-icon component represents clear, rain, snow, fog, thunder, and other conditions
 
 ### AI translation
 - **Three translation modes** via right-click context menu or selection popper:
@@ -83,6 +98,7 @@ The repository ships a built `dist/` directory, so you can run the extension wit
 - **AI translation** - right-click any page for "AI翻译" with submenu (translate page, inline translate, immersive translate, translate selection, read aloud); or select text to trigger the floating popper. Click the AI-translation button in the top nav to open the translate modal.
 - **Translation modes** - popup (floating panel), inline (paragraph-by-paragraph injection), immersive (clone-based bilingual with mode toggle). All three support incremental rendering for long text.
 - **TTS** - use the speaker buttons in the translate panel to read text aloud; toggle slow-speed (0.6×) for language learning.
+- **Weather** - click the weather button in the top nav; it uses the current location by default. Switch cities from the report header and click a date for hourly data.
 - **Settings** - click the gear icon to open the settings page.
 
 ## Configuration
@@ -95,6 +111,7 @@ Open the settings page (gear icon) to configure:
 - **Default root folder** - the folder shown on startup
 - **Excluded domains** - domains whose visits are never recorded
 - **OneTab** - tab age threshold (days) for OneTab eligibility, default 7
+- **Favorite cities** - add, switch, or remove cities in the weather modal; selections are persisted
 - **AI translation** - provider, API key, model, baseURL override, target language
 - **Clock display** - toggle and format options
 
@@ -109,7 +126,7 @@ Open the settings page (gear icon) to configure:
 | `contextMenus` | Right-click "AI翻译" submenu (translate page, inline, immersive, selection, read aloud) |
 | `history`   | Declared in the manifest, not yet used in code (reserved) |
 
-`host_permissions` are declared for the translation provider endpoints (Qwen, Doubao, GLM, Kimi) so the translate API can be called from the extension.
+`host_permissions` are declared for translation provider endpoints (Qwen, Doubao, GLM, Kimi) and weather endpoints (Open-Meteo and Photon Geocoding) so the APIs can be called from the extension.
 
 ## Tech stack
 
@@ -119,6 +136,7 @@ Open the settings page (gear icon) to configure:
 - Chrome Extension **Manifest V3**
 - **IndexedDB** for visit-trace and OneTab storage
 - **Web Speech API** for text-to-speech
+- [Open-Meteo](https://open-meteo.com/) weather data
 - [Vitest](https://vitest.dev/) for testing
 
 ## Project structure
@@ -151,6 +169,8 @@ bookmark-chrome/
 │   │   │       ├── AllTabsModal.vue
 │   │   │       ├── OneTabPage.vue
 │   │   │       ├── TranslateModal.vue
+│   │   │       ├── WeatherModal.vue
+│   │   │       ├── WeatherIcon.vue
 │   │   │       ├── ConfirmModal.vue
 │   │   │       └── TopNav.vue
 │   │   └── settings/              # Settings page
@@ -169,6 +189,7 @@ bookmark-chrome/
 │       ├── tabs-manager.js        # Tab utilities (all-tabs, domain grouping)
 │       ├── onetab-manager.js      # OneTab filtering, view builder, CRUD
 │       ├── lunar.js               # Lunar-date conversion for clock display
+│       ├── weather-api.js         # Open-Meteo weather lookup, city search, and data normalization
 │       └── translate/
 │           ├── providers.js       # Translation provider registry
 │           ├── prompt.js          # Translation prompt templates

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "MarkTrace",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "书签管理 + 访问留痕 + AI翻译 + 页签清理，替换 Chrome 新标签页，打造高效浏览工作区",
   "icons": {
     "16": "public/icons/icon16.png",
@@ -28,7 +28,10 @@
     "https://dashscope.aliyuncs.com/*",
     "https://ark.cn-beijing.volces.com/*",
     "https://open.bigmodel.cn/*",
-    "https://api.moonshot.cn/*"
+    "https://api.moonshot.cn/*",
+    "https://api.open-meteo.com/*",
+    "https://geocoding-api.open-meteo.com/*",
+    "https://photon.komoot.io/*"
   ],
   "background": {
     "service_worker": "service-worker-loader.js",
