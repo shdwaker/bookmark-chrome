@@ -170,7 +170,7 @@
             <span class="setting-desc">选中网页文本后的交互方式（二选一）</span>
           </div>
           <select v-model="settings.translate.interactionMode" @change="saveSettings">
-            <option value="selection">选中文本时显示按钮</option>
+            <option value="selection">选中文本时显示按钮（右键菜单始终可用）</option>
             <option value="contextmenu">右键菜单</option>
           </select>
         </div>

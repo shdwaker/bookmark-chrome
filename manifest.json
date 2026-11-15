@@ -15,7 +15,9 @@
     "tabs",
     "history",
     "alarms",
-    "contextMenus"
+    "contextMenus",
+    "scripting",
+    "activeTab"
   ],
   "action": {
     "default_title": "打开 MarkTrace",

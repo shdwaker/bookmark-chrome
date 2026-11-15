@@ -1,5 +1,5 @@
 import { getProvider } from './providers'
-import { buildSystemPrompt, buildUserPrompt } from './prompt'
+import { buildSystemPrompt, buildUserPrompt, buildWordEntryPrompt } from './prompt'
 import { doFetch } from './transport'
 
 // Accept either a plain model/endpoint id (e.g. "qwen-max", "ep-2024xxx")
@@ -196,5 +196,80 @@ export async function translate({ text, direction, provider, apiKey, model, base
   return {
     translation: parsed.translation,
     notes: parsed.notes || ''
+  }
+}
+
+function buildWordRequest(format, { word, context, model }) {
+  const userPrompt = buildWordEntryPrompt({ word, context })
+  if (format === 'anthropic') {
+    return {
+      model,
+      max_tokens: 1200,
+      system: [
+        '你是英语词汇学习助手。请生成简明、准确、适合中国英语学习者的单词知识卡。',
+        '只输出 JSON，不要使用 markdown 代码块。',
+        '输出格式：{"word":"单词","meaning":"简明中文释义","examples":[{"text":"英文例句","translation":"中文翻译"}],"similarWords":[{"word":"近义词","meaning":"简明释义"}]}',
+        'examples 最多 3 条，第一条优先使用提供的上下文；similarWords 最多 3 个。'
+      ].join('\n'),
+      messages: [{ role: 'user', content: userPrompt }]
+    }
+  }
+  return {
+    model,
+    messages: [
+      { role: 'system', content: [
+        '你是英语词汇学习助手。请生成简明、准确、适合中国英语学习者的单词知识卡。',
+        '只输出 JSON，不要使用 markdown 代码块。',
+        '输出格式：{"word":"单词","meaning":"简明中文释义","examples":[{"text":"英文例句","translation":"中文翻译"}],"similarWords":[{"word":"近义词","meaning":"简明释义"}]}',
+        'examples 最多 3 条，第一条优先使用提供的上下文；similarWords 最多 3 个。'
+      ].join('\n') },
+      { role: 'user', content: userPrompt }
+    ]
+  }
+}
+
+export async function translateWordEntry({ word, context, provider, apiKey, model, baseURL, apiFormat }) {
+  if (!word || !word.trim()) throw new Error('生词不能为空')
+  if (!provider) throw new Error('未选择翻译模型')
+  const useApiKey = (apiKey || '').trim()
+  if (!useApiKey) throw new Error('未配置 API key')
+  const config = getProvider(provider)
+  const format = apiFormat || 'openai'
+  const useBaseURL = (baseURL || '').trim() || config.baseURL
+  const useModel = normalizeModel(model) || config.defaultModel
+  if (!useModel) throw new Error('未配置模型')
+
+  const response = await doFetch(buildRequestURL(useBaseURL, format), {
+    method: 'POST',
+    headers: format === 'anthropic'
+      ? {
+          'x-api-key': useApiKey,
+          'anthropic-version': '2023-06-01',
+          'Content-Type': 'application/json'
+        }
+      : {
+          Authorization: `Bearer ${useApiKey}`,
+          'Content-Type': 'application/json'
+        },
+    body: JSON.stringify(buildWordRequest(format, { word, context, model: useModel }))
+  })
+
+  if (!response.ok) {
+    const detail = await readErrorDetail(response)
+    throw new Error(`AI 生成生词卡失败（HTTP ${response.status}）${detail ? '：' + detail : ''}`)
+  }
+
+  const data = await response.json()
+  const content = format === 'anthropic'
+    ? parseAnthropicResponse(data)
+    : parseOpenAIResponse(data)
+  const parsed = extractJSON(content)
+  if (!parsed?.word || !parsed?.meaning) throw new Error('AI 未返回有效的生词卡')
+  return {
+    word: parsed.word,
+    meaning: parsed.meaning,
+    examples: parsed.examples || [],
+    similarWords: parsed.similarWords || [],
+    context: context || ''
   }
 }

@@ -15,7 +15,9 @@
     "tabs",
     "history",
     "alarms",
-    "contextMenus"
+    "contextMenus",
+    "scripting",
+    "activeTab"
   ],
   "action": {
     "default_title": "打开 MarkTrace",
@@ -40,8 +42,8 @@
   "content_scripts": [
     {
       "js": [
-        "assets/translate-panel.js-loader-CAxrby0e.js",
-        "assets/inline-translate.js-loader-BOaVAg2E.js"
+        "assets/translate-panel.js-loader-DDMK3RRu.js",
+        "assets/inline-translate.js-loader-DEwnyk_n.js"
       ],
       "matches": [
         "<all_urls>"
@@ -60,10 +62,10 @@
       "resources": [
         "src/pages/main/index.html",
         "src/pages/settings/index.html",
-        "assets/inline-translate-C18GrOMB.js",
-        "assets/syllable-splitter-DmFjut49.js",
-        "assets/inline-translate.js-B-Uy8a5d.js",
-        "assets/translate-panel.js-D8M9kg2n.js"
+        "assets/inline-translate.js-CLJwn9NT.js",
+        "assets/inline-D8oo8-WE.js",
+        "assets/chunk-BqGw6xQA.js",
+        "assets/translate-panel.js-DuB6Ixu7.js"
       ],
       "use_dynamic_url": false
     }

@@ -75,21 +75,23 @@
 
       <div v-if="store.error" class="translate-error">{{ store.error }}</div>
 
-      <div v-if="store.result" class="translate-result">
+      <div v-if="store.result?.length" class="translate-result">
         <div class="result-row">
-          <div class="result-label">译文</div>
+          <div class="result-label">段落翻译</div>
           <div class="speak-group">
             <button
               class="speak-btn"
               :class="{ speaking: playingKey === 'result-normal' }"
-              @click="toggleSpeak(store.result.translation, 1, 'result-normal')"
+              :disabled="!translatedText"
+              @click="toggleSpeak(translatedText, 1, 'result-normal')"
             >
               {{ playingKey === 'result-normal' ? '停止' : '朗读' }}
             </button>
             <button
               class="speak-btn"
               :class="{ speaking: playingKey === 'result-slow' }"
-              @click="toggleSpeak(store.result.translation, 0.6, 'result-slow')"
+              :disabled="!translatedText"
+              @click="toggleSpeak(translatedText, 0.6, 'result-slow')"
             >
               {{ playingKey === 'result-slow' ? '停止' : '慢速' }}
             </button>
@@ -103,22 +105,35 @@
             </button>
           </div>
         </div>
-        <div v-if="syllableMode" class="result-translation">
-          <template v-for="(seg, i) in syllableSegments" :key="i">
-            <span v-if="seg.isWord" class="syllable-word" :data-word="seg.word">
-              <span
-                v-for="(syl, j) in seg.syllables"
-                :key="j"
-                class="syllable"
-                :style="{ backgroundColor: SYLLABLE_COLORS[j % SYLLABLE_COLORS.length] }"
-              >{{ syl.text }}</span>
-            </span>
-            <template v-else>{{ seg.text }}</template>
-          </template>
+        <div class="paragraph-list">
+          <div
+            v-for="item in store.result"
+            :key="item.id"
+            v-show="item.done"
+            class="paragraph-item"
+          >
+            <div class="paragraph-label">原文</div>
+            <div class="paragraph-original">{{ item.text }}</div>
+            <div class="paragraph-label">译文</div>
+            <div v-if="syllableMode" class="result-translation">
+              <template v-for="(seg, i) in syllableSegments" :key="i">
+                <span v-if="seg.isWord" class="syllable-word" :data-word="seg.word">
+                  <span
+                    v-for="(syl, j) in seg.syllables"
+                    :key="j"
+                    class="syllable"
+                    :style="{ backgroundColor: SYLLABLE_COLORS[j % SYLLABLE_COLORS.length] }"
+                  >{{ syl.text }}</span>
+                </span>
+                <template v-else>{{ seg.text }}</template>
+              </template>
+            </div>
+            <div v-else class="result-translation">{{ item.translation }}</div>
+            <div v-if="item.notes" class="result-notes">{{ item.notes }}</div>
+            <div v-if="item.error" class="paragraph-error">{{ item.error }}</div>
+          </div>
         </div>
-        <div v-else class="result-translation">{{ store.result.translation }}</div>
-        <div v-if="store.loading" class="translating-hint">翻译中...</div>
-        <div v-if="!store.loading && store.result.notes" class="result-notes">{{ store.result.notes }}</div>
+        <div v-if="store.loading" class="translating-hint">最多 5 个段落并行翻译，完成一段显示一段...</div>
         <div v-if="speakHint" class="speak-hint">{{ speakHint }}</div>
       </div>
     </div>
@@ -174,12 +189,19 @@ function computeSyllableSegments(text) {
   return segments
 }
 
+const translatedText = computed(() =>
+  (store.result || [])
+    .filter(item => item.done && item.translation)
+    .map(item => item.translation)
+    .join('\n\n')
+)
+
 const hasEnglish = computed(() =>
-  store.result && /[a-zA-Z]{2,}/.test(store.result.translation)
+  /[a-zA-Z]{2,}/.test(translatedText.value)
 )
 
 const syllableSegments = computed(() =>
-  store.result ? computeSyllableSegments(store.result.translation) : []
+  translatedText.value ? computeSyllableSegments(translatedText.value) : []
 )
 
 const hasInputEnglish = computed(() =>
@@ -322,6 +344,12 @@ textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6p
 .btn-primary:disabled { background: #ccc; cursor: not-allowed; }
 .translate-error { color: #e53935; font-size: 13px; margin-top: 12px; }
 .translate-result { margin-top: 16px; padding-top: 16px; border-top: 1px solid #eee; }
+.paragraph-list { display: flex; flex-direction: column; gap: 12px; }
+.paragraph-item { padding-bottom: 12px; border-bottom: 1px solid #eee; }
+.paragraph-item:last-child { border-bottom: 0; }
+.paragraph-label { font-size: 12px; color: #888; margin: 6px 0 3px; }
+.paragraph-original { font-size: 14px; line-height: 1.6; color: #555; white-space: pre-wrap; word-break: break-word; }
+.paragraph-error { font-size: 12px; color: #e53935; margin-top: 4px; }
 .result-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
 .result-label { font-size: 13px; color: #888; }
 .speak-btn { background: transparent; border: 1px solid #4a90d9; color: #4a90d9; padding: 3px 10px; border-radius: 4px; font-size: 12px; cursor: pointer; }

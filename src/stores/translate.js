@@ -2,7 +2,10 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { getSettings } from '@/utils/storage'
 import { translate as translateApi } from '@/utils/translate/translate-api'
-import { splitTextIntoChunks } from '@/utils/translate/chunk'
+import { splitTextIntoChunks, splitTextIntoParagraphs } from '@/utils/translate/chunk'
+import { createPool } from '@/utils/translate/inline'
+
+const MODAL_CONCURRENCY = 5
 
 export const useTranslateStore = defineStore('translate', () => {
   const result = ref(null)
@@ -30,22 +33,56 @@ export const useTranslateStore = defineStore('translate', () => {
       apiFormat: providerConfig.apiFormat
     }
 
-    const chunks = splitTextIntoChunks(text)
+    const items = splitTextIntoParagraphs(text).flatMap((paragraph, paragraphIndex) => {
+      const chunks = splitTextIntoChunks(paragraph)
+      return chunks.map((chunkText, chunkIndex) => ({
+        id: chunks.length > 1
+          ? `p${paragraphIndex + 1}-${chunkIndex + 1}`
+          : `p${paragraphIndex + 1}`,
+        text: chunkText,
+        translation: '',
+        notes: '',
+        error: '',
+        done: false
+      }))
+    })
 
     loading.value = true
     error.value = ''
-    result.value = null
-
-    let fullTranslation = ''
-    let lastNotes = ''
+    result.value = items
 
     try {
-      for (let i = 0; i < chunks.length; i++) {
-        const r = await translateApi({ text: chunks[i], ...callOpts })
-        fullTranslation += (fullTranslation ? '\n' : '') + r.translation
-        lastNotes = r.notes || lastNotes
-        // Update result incrementally so the UI renders partial translations.
-        result.value = { translation: fullTranslation, notes: lastNotes }
+      const pool = createPool({
+        items,
+        concurrency: MODAL_CONCURRENCY,
+        worker: async (item) => {
+          const r = await translateApi({ text: item.text, ...callOpts })
+          const index = result.value.findIndex(entry => entry.id === item.id)
+          if (index >= 0) {
+            result.value[index] = {
+              ...item,
+              translation: r.translation,
+              notes: r.notes,
+              done: true
+            }
+          }
+          return r
+        }
+      })
+
+      const { failed } = await pool.promise
+      if (failed.length > 0) {
+        for (const { item, error: itemError } of failed) {
+          const index = result.value.findIndex(entry => entry.id === item.id)
+          if (index >= 0) {
+            result.value[index] = {
+              ...item,
+              error: itemError.message,
+              done: true
+            }
+          }
+        }
+        error.value = `${failed.length} 个段落翻译失败：${failed[0].error.message}`
       }
     } catch (err) {
       // Keep partial results if we have them; show error alongside.

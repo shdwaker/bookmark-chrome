@@ -7,6 +7,7 @@
 // getPiecesToTranslate, but written independently in modern ES module syntax.
 
 import { hasLatinLetters, hasCJK, looksLikeMath } from './language-detect.js'
+import { selectArticleRoot } from './article-root.js'
 
 export const INLINE_TAGS = new Set([
   'A', 'B', 'I', 'SPAN', 'STRONG', 'EM', 'SUB', 'SUP', 'SMALL',
@@ -30,6 +31,11 @@ export const SKIP_TAGS = new Set([
 ])
 
 const MATH_CLASSES = new Set(['katex', 'MathJax', 'mathjax', 'math'])
+const DECORATIVE_ROLES = new Set([
+  'navigation', 'banner', 'complementary', 'contentinfo',
+  'search', 'dialog', 'menubar', 'toolbar'
+])
+const DECORATIVE_TEXT = /(^|[^a-z])(nav|navbar|navigation|menu|sidebar|advert|advertisements?|ads|promo|banner|social|share|related|recommended|breadcrumb|pagination|newsletter|subscribe|cookie|site-header|site-footer|topbar|toolbar|comment)([^a-z]|$)/i
 
 const MAX_PIECE_CHARS = 1000
 const EXCLUDED_ROOTS = new Set([
@@ -55,6 +61,11 @@ function findBlockAncestor(node) {
 // Check if an element should be skipped (notranslate, translate=no, contenteditable, excluded root, math).
 function shouldSkipElement(el) {
   if (SKIP_TAGS.has(el.tagName)) return true
+  if (['NAV', 'MENU', 'ASIDE', 'FOOTER', 'H1'].includes(el.tagName)) return true
+  if (el.getAttribute?.('aria-hidden') === 'true') return true
+  if (DECORATIVE_ROLES.has(el.getAttribute?.('role'))) return true
+  if ([el.id, ...Array.from(el.classList || [])]
+    .some(value => value && DECORATIVE_TEXT.test(value))) return true
   if (el.classList?.contains('notranslate')) return true
   if (el.getAttribute?.('translate') === 'no') return true
   if (el.isContentEditable) return true
@@ -93,6 +104,11 @@ function applyNoTranslateSelectors(root, selectors) {
 
 // Get roots to traverse: either site rule containers or the root itself.
 function getTraversalRoots(root, rule) {
+  if (root === document.body && !rule?.containerSelectors?.length) {
+    const articleRoot = selectArticleRoot(root)
+    if (articleRoot) return [articleRoot]
+  }
+
   if (rule?.containerSelectors?.length) {
     const roots = []
     for (const selector of rule.containerSelectors) {

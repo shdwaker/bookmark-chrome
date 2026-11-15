@@ -11,12 +11,15 @@
 const PANEL_HOST_ID = '__ai_translate_panel_host__'
 const READ_ALOUD_HOST_ID = '__ai_translate_read_aloud_host__'
 const POPPER_HOST_ID = '__ai_translate_popper_host__'
-const PAGE_TEXT_LIMIT = 5000
+const POPUP_CONCURRENCY = 5
+const PAGE_BATCH_SIZE = 5
 
 import { startInlineTranslation, clearInline } from './inline-translate.js'
 import { startImmersive, clearImmersive } from './immersive-translate.js'
-import { splitTextIntoChunks } from '../utils/translate/chunk.js'
+import { splitTextIntoChunks, splitTextIntoParagraphs } from '../utils/translate/chunk.js'
 import { splitSyllables } from '../utils/translate/syllable-splitter.js'
+import { createPool } from '../utils/translate/inline.js'
+import { extractPageParagraphs, PAGE_TEXT_LIMIT } from '../utils/translate/page-content.js'
 
 // --- Settings cache (refreshed via storage.onChanged) ---
 const cachedSettings = {
@@ -151,6 +154,20 @@ async function doTranslateIncremental(text, direction, onPartial) {
   return { translation: fullTranslation, notes: lastNotes }
 }
 
+async function doTranslateParagraphs(items, direction, onParagraph) {
+  const pool = createPool({
+    items,
+    concurrency: POPUP_CONCURRENCY,
+    worker: async (item) => {
+      const result = await doTranslate(item.text, direction)
+      onParagraph(item, result)
+      return result
+    }
+  })
+
+  return pool.promise
+}
+
 // --- Panel ---
 function removeExistingPanel() {
   document.getElementById(PANEL_HOST_ID)?.remove()
@@ -176,12 +193,36 @@ function createPanelHost(position) {
   shadow.innerHTML = PANEL_HTML
   document.body.appendChild(host)
 
+  wirePanelTabs(shadow)
+
   shadow.querySelector('.close-btn').addEventListener('click', () => {
     stopSpeak()
     host.remove()
   })
 
   return shadow
+}
+
+function wirePanelTabs(shadow) {
+  shadow.querySelectorAll('.panel-tab').forEach(button => {
+    button.addEventListener('click', () => setPanelTab(shadow, button.dataset.tab))
+  })
+  shadow.querySelector('.manual-translate-btn').addEventListener('click', () => {
+    const text = shadow.querySelector('.manual-input').value.trim()
+    if (!text) return
+    startParagraphTranslation(shadow, getSelectionParagraphs(text), {
+      paneSelector: '.manual-result',
+      paged: false
+    })
+  })
+}
+
+function setPanelTab(shadow, tab) {
+  shadow.querySelectorAll('.panel-tab').forEach(button => {
+    button.classList.toggle('active', button.dataset.tab === tab)
+  })
+  shadow.querySelector('.page-pane').hidden = tab !== 'page'
+  shadow.querySelector('.manual-pane').hidden = tab !== 'manual'
 }
 
 function positionNearSelection(host) {
@@ -323,12 +364,146 @@ function showError(shadow, message) {
 // Otherwise, show the error as a full-page replacement.
 function handleIncrementalError(shadow, err) {
   const body = shadow.querySelector('.body')
-  if (body && body.querySelector('.result-text')) {
+  if (body && body.querySelector('.paragraph-item')) {
+    body.querySelector('.incremental-loading')?.remove()
+    body.insertAdjacentHTML('beforeend', `<div class="error">${escapeHtml(err.message)}</div>`)
+  } else if (body && body.querySelector('.result-text')) {
     body.querySelector('.incremental-loading')?.remove()
     body.insertAdjacentHTML('beforeend', `<div class="error">${escapeHtml(err.message)}</div>`)
   } else {
     showError(shadow, err.message)
   }
+}
+
+function showParagraphStart(shadow, items, paneSelector = '.page-pane') {
+  const pane = shadow.querySelector(paneSelector)
+  pane.innerHTML = `
+    <div class="paragraph-list"></div>
+    <div class="translation-status" data-total="${items.length}">翻译中... 0/${items.length}</div>
+  `
+  const list = pane.querySelector('.paragraph-list')
+  for (const item of items) {
+    const pair = document.createElement('div')
+    pair.className = 'paragraph-item'
+    pair.hidden = true
+    pair.dataset.itemId = item.id
+    pair.innerHTML = `
+      <div class="section-row"><span class="section-label">原文</span></div>
+      <div class="paragraph-original"></div>
+      <div class="section-row"><span class="section-label">译文</span></div>
+      <div class="paragraph-result"></div>
+    `
+    pair.querySelector('.paragraph-original').textContent = item.text
+    list.appendChild(pair)
+  }
+}
+
+function showParagraphResult(shadow, item, result, paneSelector = '.page-pane') {
+  const pane = shadow.querySelector(paneSelector)
+  const pair = pane.querySelector(`.paragraph-item[data-item-id="${CSS.escape(item.id)}"]`)
+  if (!pair || pair.dataset.done === '1') return
+
+  pair.dataset.done = '1'
+  pair.hidden = false
+  pair.querySelector('.paragraph-result').textContent = result.translation
+  if (result.notes) {
+    const notes = document.createElement('div')
+    notes.className = 'paragraph-notes'
+    notes.textContent = result.notes
+    pair.appendChild(notes)
+  }
+
+  const status = pane.querySelector('.translation-status')
+  const completed = pane.querySelectorAll('.paragraph-item[data-done="1"]').length
+  if (status) {
+    const batchTotal = Number(status.dataset.batchTotal || status.dataset.total)
+    const completedBefore = Number(status.dataset.completedBefore || 0)
+    status.textContent = completed >= batchTotal
+      ? `已完成 ${completed}/${status.dataset.total}`
+      : `翻译中... ${completed - completedBefore}/${batchTotal}`
+  }
+  pane.scrollTop = pane.scrollHeight
+}
+
+function startParagraphTranslation(shadow, paragraphs, options = {}) {
+  const paneSelector = options.paneSelector || '.page-pane'
+  const paged = options.paged !== false
+  const items = []
+  paragraphs.forEach((paragraph, paragraphIndex) => {
+    const chunks = splitTextIntoChunks(paragraph.text)
+    chunks.forEach((chunkText, chunkIndex) => {
+      items.push({
+        id: chunks.length > 1
+          ? `p${paragraphIndex + 1}-${chunkIndex + 1}`
+          : paragraph.id,
+        text: chunkText
+      })
+    })
+  })
+
+  showParagraphStart(shadow, items, paneSelector)
+  const pane = shadow.querySelector(paneSelector)
+  const status = pane.querySelector('.translation-status')
+  let offset = 0
+
+  const runBatch = async () => {
+    const batch = items.slice(offset, paged ? offset + PAGE_BATCH_SIZE : items.length)
+    const completedBefore = pane.querySelectorAll('.paragraph-item[data-done="1"]').length
+    status.dataset.batchTotal = String(batch.length)
+    status.dataset.completedBefore = String(completedBefore)
+    status.textContent = `翻译中... 0/${batch.length}`
+    pane.querySelector('.continue-btn')?.remove()
+
+    const { failed } = await doTranslateParagraphs(batch, 'auto', (item, result) => {
+      showParagraphResult(shadow, item, result, paneSelector)
+    })
+
+    offset += batch.length
+    if (failed.length > 0) {
+      const message = failed.map(({ error }) => error?.message || String(error)).join('\n')
+      handleParagraphError(shadow, paneSelector, new Error(`${failed.length} 个段落翻译失败：\n${message}`))
+    }
+
+    if (paged && offset < items.length) {
+      showContinueButton(shadow, items.length - offset, runBatch)
+    } else {
+      status.textContent = `已完成 ${completedBefore + batch.length}/${items.length}`
+    }
+  }
+
+  runBatch().catch(err => handleParagraphError(shadow, paneSelector, err))
+
+  if (options.truncated && paneSelector === '.page-pane') {
+    const hint = document.createElement('div')
+    hint.className = 'truncated-hint'
+    hint.textContent = '页面内容较长，仅翻译正文前 12000 字'
+    pane.prepend(hint)
+  }
+}
+
+function showContinueButton(shadow, remaining, onClick) {
+  const pane = shadow.querySelector('.page-pane')
+  pane.querySelector('.continue-btn')?.remove()
+  const button = document.createElement('button')
+  button.className = 'continue-btn'
+  button.textContent = `继续翻译（剩余 ${remaining} 段）`
+  button.addEventListener('click', () => {
+    button.disabled = true
+    onClick()
+  })
+  pane.appendChild(button)
+}
+
+function handleParagraphError(shadow, paneSelector, err) {
+  shadow.querySelector(paneSelector)
+    .insertAdjacentHTML('beforeend', `<div class="error">${escapeHtml(err.message)}</div>`)
+}
+
+function getSelectionParagraphs(text) {
+  return splitTextIntoParagraphs(text).map((paragraph, index) => ({
+    id: `p${index + 1}`,
+    text: paragraph
+  }))
 }
 
 function updateSpeakButtons(shadow) {
@@ -456,6 +631,39 @@ function showReadAloudControl(text) {
   })
 }
 
+function showVocabularyFeedback(payload) {
+  const hostId = '__ai_translate_vocabulary_toast__'
+  document.getElementById(hostId)?.remove()
+  const host = document.createElement('div')
+  host.id = hostId
+  host.style.cssText = 'position:fixed; top:20px; right:20px; z-index:2147483647;'
+  const shadow = host.attachShadow({ mode: 'open' })
+  const entry = payload.entry
+  const text = entry
+    ? `已保存生词：${entry.word}\n${entry.meaning}`
+    : payload.error || '生词保存失败'
+  shadow.innerHTML = `
+    <style>
+      .toast {
+        background: ${entry ? '#4caf50' : '#e53935'};
+        color: #fff;
+        padding: 10px 14px;
+        border-radius: 10px;
+        box-shadow: 0 4px 16px rgba(0,0,0,.18);
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        font-size: 13px;
+        line-height: 1.4;
+        max-width: 320px;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+    </style>
+    <div class="toast">${escapeHtml(text)}</div>
+  `
+  document.body.appendChild(host)
+  setTimeout(() => host.remove(), entry ? 3200 : 5200)
+}
+
 // --- Selection popper (inline 翻译/朗读 buttons) ---
 function hideSelectionPopper() {
   document.getElementById(POPPER_HOST_ID)?.remove()
@@ -526,11 +734,7 @@ function showSelectionPopper(rect, text) {
   shadow.querySelector('[data-action="translate"]').addEventListener('click', () => {
     hideSelectionPopper()
     const shadow = createPanelHost('selection')
-    showLoading(shadow)
-    doTranslateIncremental(text, 'auto', (partial, isLast) => {
-      showIncrementalResult(shadow, partial, isLast, false, text)
-    })
-      .catch(err => handleIncrementalError(shadow, err))
+    startParagraphTranslation(shadow, getSelectionParagraphs(text), { paged: false })
   })
 
   shadow.querySelector('[data-action="read"]').addEventListener('click', () => {
@@ -564,38 +768,28 @@ document.addEventListener('mousedown', (e) => {
   }
 }, true)
 
-// --- Page text extraction ---
-function getPageText() {
-  const text = (document.body.innerText || '').trim()
-  return {
-    text: text.slice(0, PAGE_TEXT_LIMIT),
-    truncated: text.length > PAGE_TEXT_LIMIT
-  }
-}
-
 // --- Message listener ---
 chrome.runtime.onMessage.addListener((message) => {
+  if (message.type === 'vocabulary-feedback') {
+    showVocabularyFeedback(message)
+    return
+  }
+
   if (message.type === 'translate-selection') {
     const text = (message.selectionText || '').trim()
     if (!text) return
     const shadow = createPanelHost('selection')
-    showLoading(shadow)
-    doTranslateIncremental(text, 'auto', (partial, isLast) => {
-      showIncrementalResult(shadow, partial, isLast, false, text)
-    })
-      .catch(err => handleIncrementalError(shadow, err))
+    startParagraphTranslation(shadow, getSelectionParagraphs(text), { paged: false })
     return
   }
 
   if (message.type === 'translate-page') {
-    const { text, truncated } = getPageText()
-    if (!text) return
-    const shadow = createPanelHost('corner')
-    showLoading(shadow)
-    doTranslateIncremental(text, 'auto', (partial, isLast) => {
-      showIncrementalResult(shadow, partial, isLast, truncated)
+    const { paragraphs, truncated } = extractPageParagraphs(document, {
+      maxChars: PAGE_TEXT_LIMIT
     })
-      .catch(err => handleIncrementalError(shadow, err))
+    if (paragraphs.length === 0) return
+    const shadow = createPanelHost('corner')
+    startParagraphTranslation(shadow, paragraphs, { truncated })
     return
   }
 
@@ -649,13 +843,25 @@ const PANEL_HTML = `
     flex-direction: column;
   }
   .header {
-    display: flex;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 10px;
     align-items: center;
-    padding: 12px 16px;
+    padding: 10px 16px;
     border-bottom: 1px solid #eee;
   }
   .title { font-size: 15px; font-weight: 600; }
+  .panel-tabs { display: flex; justify-content: center; gap: 6px; }
+  .panel-tab {
+    padding: 4px 10px;
+    border: 1px solid #ddd;
+    border-radius: 999px;
+    background: #fff;
+    color: #666;
+    cursor: pointer;
+    font-size: 12px;
+  }
+  .panel-tab.active { background: #4a90d9; border-color: #4a90d9; color: #fff; }
   .close-btn {
     background: transparent;
     border: none;
@@ -667,11 +873,78 @@ const PANEL_HTML = `
   }
   .close-btn:hover { color: #333; }
   .body { padding: 14px 16px; overflow-y: auto; flex: 1; }
+  .tab-pane { min-height: 40px; }
+  .manual-pane { display: flex; flex-direction: column; gap: 10px; }
+  .tab-pane[hidden] { display: none; }
+  .manual-input {
+    width: 100%;
+    min-height: 88px;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font: inherit;
+    color: #333;
+    box-sizing: border-box;
+    resize: vertical;
+  }
+  .manual-translate-btn {
+    align-self: flex-end;
+    background: #4a90d9;
+    border: none;
+    color: #fff;
+    padding: 6px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  .translation-status { color: #888; font-size: 12px; padding: 8px 0; text-align: center; }
+  .continue-btn {
+    display: block;
+    width: 100%;
+    margin-top: 10px;
+    padding: 8px 12px;
+    border: 1px solid #4a90d9;
+    border-radius: 8px;
+    background: #fff;
+    color: #4a90d9;
+    cursor: pointer;
+    font-size: 13px;
+  }
+  .continue-btn:disabled { opacity: .6; cursor: not-allowed; }
   .loading { color: #888; padding: 20px 0; text-align: center; }
   .original-section {
     margin-bottom: 12px;
     padding-bottom: 12px;
     border-bottom: 1px solid #eee;
+  }
+  .paragraph-item {
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #eee;
+  }
+  .paragraph-item:last-child { border-bottom: 0; }
+  .paragraph-original {
+    font-size: 14px;
+    line-height: 1.6;
+    color: #555;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .paragraph-result {
+    font-size: 14px;
+    line-height: 1.6;
+    color: #333;
+    margin-top: 6px;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .paragraph-notes {
+    margin-top: 6px;
+    font-size: 12px;
+    line-height: 1.5;
+    color: #666;
+    background: #f9f9f9;
+    padding: 6px 8px;
+    border-radius: 6px;
   }
   .section-row {
     display: flex;
@@ -755,10 +1028,19 @@ const PANEL_HTML = `
 <div class="panel">
   <div class="header">
     <span class="title">AI 翻译</span>
+    <div class="panel-tabs">
+      <button class="panel-tab active" data-tab="page">整页</button>
+      <button class="panel-tab" data-tab="manual">手动</button>
+    </div>
     <button class="close-btn">×</button>
   </div>
   <div class="body">
-    <div class="loading">翻译中...</div>
+    <div class="tab-pane page-pane"></div>
+    <div class="tab-pane manual-pane" hidden>
+      <textarea class="manual-input" placeholder="输入要翻译的内容..."></textarea>
+      <button class="manual-translate-btn">翻译</button>
+      <div class="manual-result"></div>
+    </div>
   </div>
 </div>
 `

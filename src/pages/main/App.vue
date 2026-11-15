@@ -11,11 +11,13 @@
       @open-all-tabs="handleOpenAllTabs"
       @open-onetab="handleOpenOnetab"
       @open-translate="handleOpenTranslate"
+      @open-vocabulary="activeView = 'vocabulary'"
       @open-weather="showWeather = true"
     />
     <div class="main-content">
       <AllTabsPanel v-if="activeView === 'all-tabs'" />
       <OneTabPage v-else-if="activeView === 'onetab'" />
+      <VocabularyPage v-else-if="activeView === 'vocabulary'" />
       <template v-else>
         <FolderTree
           :folders="currentFolderTree"
@@ -96,6 +98,7 @@ import TranslateModal from './components/TranslateModal.vue'
 import WeatherModal from './components/WeatherModal.vue'
 import AllTabsPanel from './components/AllTabsModal.vue'
 import OneTabPage from './components/OneTabPage.vue'
+import VocabularyPage from './components/VocabularyPage.vue'
 
 const bookmarkStore = useBookmarkStore()
 const settingsStore = useSettingsStore()

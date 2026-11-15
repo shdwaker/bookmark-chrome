@@ -43,11 +43,13 @@ English | [简体中文](README.zh-CN.md)
 - **Crisp vector icons** - an SVG weather-icon component represents clear, rain, snow, fog, thunder, and other conditions
 
 ### AI translation
-- **Three translation modes** via right-click context menu or selection popper:
-  - **Popup translation** - translate selected text or the entire page in a floating Shadow DOM panel
+- **Three translation modes**; the right-click menu is always available, while the selection popper follows the interaction mode:
+  - **Popup translation** - floating Shadow DOM panel with separate "Page" and "Manual" tabs so both translations remain available
   - **Inline translation** - translate the page paragraph-by-paragraph, inserting translations below each block element; includes a "继续翻译" (continue) button for pages with 100+ paragraphs
   - **Immersive translation** - clone-based bilingual display with three toggle modes: dual (original + translation), translated only, or original only; supports pause/resume, dynamic content monitoring (MutationObserver for SPAs), and an IndexedDB translation cache
-- **Incremental rendering** - long text is split into ~500-char chunks at sentence boundaries and translated sequentially; results appear in the panel as each chunk completes, so you see progress immediately instead of waiting for the full response
+- **Article detection** - Mozilla Readability identifies the main article so popup and immersive translation skip navigation, sidebars, ads, footers, and page titles
+- **Batched paragraph rendering** - full-page popups translate at most five paragraphs in parallel, display each original/translation pair as soon as it completes, and wait for a "Continue" action before translating more
+- **English vocabulary library** - right-click "AI翻译 → 保存生词" to generate the meaning, examples, and similar words with AI; entries sync across devices with Chrome Sync and support read-aloud for words and English examples
 - **Math formula protection** - skips KaTeX, MathJax, and MathML containers; detects Unicode math symbols (𝐳, z₁, x², ∑, ∫, √), LaTeX commands, and function notation (softmax, sqrt) so formulas are never translated
 - **Multiple providers** - Alibaba Qwen, Volcengine Doubao, Zhipu GLM, Moonshot Kimi; supports both OpenAI and Anthropic Messages API formats
 - **Custom provider config** - override baseURL, model, and target language
@@ -95,10 +97,11 @@ The repository ships a built `dist/` directory, so you can run the extension wit
 - **Favorite folders** - star a folder for quick access.
 - **Browsing history** - open the history modal to see per-site and per-URL visits.
 - **OneTab** - in the all-tabs panel, click the OneTab button (global or per-card) to sweep eligible tabs into a restorable list; open the OneTab page to browse, restore, or delete saved records.
-- **AI translation** - right-click any page for "AI翻译" with submenu (translate page, inline translate, immersive translate, translate selection, read aloud); or select text to trigger the floating popper. Click the AI-translation button in the top nav to open the translate modal.
+- **AI translation** - right-click any page for "AI翻译" with submenu (translate page, inline translate, immersive translate, translate selection, save vocabulary, read aloud); or select text to trigger the floating popper. Click the AI-translation button in the top nav to open the translate modal.
 - **Translation modes** - popup (floating panel), inline (paragraph-by-paragraph injection), immersive (clone-based bilingual with mode toggle). All three support incremental rendering for long text.
-- **TTS** - use the speaker buttons in the translate panel to read text aloud; toggle slow-speed (0.6×) for language learning.
-- **Weather** - click the weather button in the top nav; it uses the current location by default. Switch cities from the report header and click a date for hourly data.
+- **TTS** - read text in the translate panel and read vocabulary words and English examples in the vocabulary library; the translate panel supports slow-speed (0.6×) mode.
+- **Weather** - click "其它 → 天气" in the top nav; it uses the current location by default. Switch cities from the report header and click a date for hourly data.
+- **Vocabulary library** - click "其它 → 生词本" in the top nav to search, read aloud, or delete saved words.
 - **Settings** - click the gear icon to open the settings page.
 
 ## Configuration
@@ -131,10 +134,12 @@ Open the settings page (gear icon) to configure:
 ## Tech stack
 
 - [Vue 3](https://vuejs.org/) + Composition API
+- [@mozilla/readability](https://github.com/mozilla/readability) for article extraction
 - [Vite](https://vitejs.dev/) + [@crxjs/vite-plugin](https://crxjs.dev/vite-plugin)
 - [Pinia](https://pinia.vuejs.org/) for state management
 - Chrome Extension **Manifest V3**
 - **IndexedDB** for visit-trace and OneTab storage
+- **Chrome Storage Sync** for the English vocabulary library
 - **Web Speech API** for text-to-speech
 - [Open-Meteo](https://open-meteo.com/) weather data
 - [Vitest](https://vitest.dev/) for testing
@@ -196,8 +201,11 @@ bookmark-chrome/
 │           ├── transport.js       # Provider-agnostic transport layer
 │           ├── translate-api.js   # Translation API calls + JSON extraction
 │           ├── chunk.js           # Text chunking for incremental rendering
+│           ├── page-content.js     # Readability-based article and paragraph extraction
+│           ├── vocabulary.js        # Chrome Sync-backed vocabulary library
 │           ├── inline.js          # Inline translation helpers (pool, collector)
 │           └── immersive/         # Immersive translation utilities
+│               ├── article-root.js        # Article container detection
 │               ├── paragraph-detector.js  # DOM tree walker for piece detection
 │               ├── cache.js               # IndexedDB translation cache
 │               ├── dom-injector.js        # Clone/inject/mode-switch/cleanup

@@ -1,7 +1,8 @@
 // Background Service Worker - 监听页面访问
 
 import { getSettings } from '../utils/storage.js'
-import { translate } from '../utils/translate/translate-api.js'
+import { translate, translateWordEntry } from '../utils/translate/translate-api.js'
+import { saveVocabularyEntry } from '../utils/translate/vocabulary.js'
 import { initDB, addTraceRecord, cleanOldRecords, extractDomain, shouldTrackUrl } from '../utils/trace-manager.js'
 
 // 初始化
@@ -35,7 +36,64 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 })
 
+async function injectContentScripts(tabId) {
+  const contentScripts = chrome.runtime.getManifest().content_scripts || []
+  const files = contentScripts.flatMap(script => script.js || [])
+  if (files.length === 0) return
+  await chrome.scripting.executeScript({
+    target: { tabId },
+    files
+  })
+}
+
+async function sendMessageToTab(tabId, message) {
+  try {
+    return await chrome.tabs.sendMessage(tabId, message)
+  } catch {
+    await injectContentScripts(tabId)
+    return await chrome.tabs.sendMessage(tabId, message)
+  }
+}
+
+function extractEnglishWord(selectionText) {
+  const text = String(selectionText || '').trim()
+  if (!text) return ''
+  const singleWord = text.match(/^[A-Za-z][A-Za-z'-]*$/)
+  if (singleWord) return singleWord[0]
+  return (text.match(/[A-Za-z][A-Za-z'-]*/) || [''])[0].slice(0, 64)
+}
+
+async function saveSelectedWord(selectionText, tabId) {
+  const word = extractEnglishWord(selectionText)
+  if (!word) {
+    sendVocabularyFeedback(tabId, { error: '请选中一个英文单词' })
+    return
+  }
+  try {
+    const providerOptions = await getProviderOptions()
+    const entry = await translateWordEntry({ word, context: selectionText, ...providerOptions })
+    await saveVocabularyEntry(entry)
+    sendVocabularyFeedback(tabId, { entry })
+  } catch (err) {
+    sendVocabularyFeedback(tabId, { error: err.message })
+  }
+}
+
+function sendVocabularyFeedback(tabId, payload) {
+  sendMessageToTab(tabId, { type: 'vocabulary-feedback', ...payload })
+    .catch(() => { /* Pages such as chrome:// cannot receive feedback. */ })
+}
+
 async function handleDoTranslate(text, direction) {
+  const providerOptions = await getProviderOptions()
+  return await translate({
+    text,
+    direction: direction || 'auto',
+    ...providerOptions
+  })
+}
+
+async function getProviderOptions() {
   const settings = await getSettings()
   const tSettings = settings.translate
   const useProvider = tSettings.defaultProvider
@@ -43,44 +101,33 @@ async function handleDoTranslate(text, direction) {
   if (!cfg || !cfg.apiKey) {
     throw new Error(`请先在设置中配置 ${useProvider} 的 API key`)
   }
-  return await translate({
-    text,
-    direction: direction || 'auto',
+  return {
     provider: useProvider,
     apiKey: cfg.apiKey,
     model: cfg.model,
     baseURL: cfg.baseURL,
     apiFormat: cfg.apiFormat
-  })
-}
-
-// 右键菜单 - AI翻译 (根据 interactionMode 设置动态开关)
-let cachedContextMenuEnabled = false
-
-async function refreshContextMenuState() {
-  const settings = await getSettings()
-  const enabled = settings.translate?.interactionMode === 'contextmenu'
-  if (enabled !== cachedContextMenuEnabled) {
-    cachedContextMenuEnabled = enabled
-    createContextMenus()
   }
 }
+
+// 右键菜单始终可用；interactionMode 只控制选中文本按钮。
 
 chrome.contextMenus.onClicked.addListener((info, tab) => {
   if (!tab?.id) return
   const type = info.menuItemId
+  if (type === 'save-word') {
+    saveSelectedWord(info.selectionText || '', tab.id)
+    return
+  }
   if (type !== 'translate-page' && type !== 'translate-page-inline' && type !== 'immersive-translate' && type !== 'translate-selection' && type !== 'read-aloud') return
-  chrome.tabs.sendMessage(tab.id, {
+  sendMessageToTab(tab.id, {
     type,
     selectionText: info.selectionText || ''
-  }).catch(() => {
-    // 内容脚本可能未加载（如 chrome:// 页面），忽略错误
-  })
+  }).catch(err => console.warn('[MarkTrace] unable to send translate message', err))
 })
 
 function createContextMenus() {
   chrome.contextMenus.removeAll(() => {
-    if (!cachedContextMenuEnabled) return
     chrome.contextMenus.create({
       id: 'ai-translate',
       title: 'AI翻译',
@@ -111,6 +158,12 @@ function createContextMenus() {
       contexts: ['selection']
     })
     chrome.contextMenus.create({
+      id: 'save-word',
+      parentId: 'ai-translate',
+      title: '保存生词',
+      contexts: ['selection']
+    })
+    chrome.contextMenus.create({
       id: 'read-aloud',
       parentId: 'ai-translate',
       title: '朗读',
@@ -118,18 +171,6 @@ function createContextMenus() {
     })
   })
 }
-
-// 设置变化时动态更新右键菜单
-chrome.storage.onChanged.addListener((changes) => {
-  const t = changes.settings?.newValue?.translate
-  if (t && t.interactionMode !== undefined) {
-    const enabled = t.interactionMode === 'contextmenu'
-    if (enabled !== cachedContextMenuEnabled) {
-      cachedContextMenuEnabled = enabled
-      createContextMenus()
-    }
-  }
-})
 
 // 监听标签页更新
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
@@ -172,8 +213,8 @@ chrome.tabs.onRemoved.addListener(async (tabId) => {
 // 定时清理过期记录 - 每小时执行一次
 chrome.alarms.create('cleanOldRecords', { periodInMinutes: 60 })
 
-// Service worker 启动时同步右键菜单状态（MV3 worker 可能被杀死后重启）
-refreshContextMenuState()
+// Service worker 启动时确保右键菜单存在（MV3 worker 可能被杀死后重启）
+createContextMenus()
 
 chrome.alarms.onAlarm.addListener(async (alarm) => {
   if (alarm.name === 'cleanOldRecords') {
@@ -192,7 +233,6 @@ chrome.action.onClicked.addListener((tab) => {
 
 // 扩展安装或更新时的处理
 chrome.runtime.onInstalled.addListener(async (details) => {
-  await refreshContextMenuState()
   if (details.reason === 'install') {
     // 首次安装
     console.log('Extension installed')

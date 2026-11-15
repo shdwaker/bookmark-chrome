@@ -1,0 +1,1 @@
+function o(s,t=500){if(s.length<=t)return[s];const l=s.split(new RegExp("(?<=[.!?。！？\\n])\\s*")),r=[];let n="";for(const e of l)if(e)for(n&&n.length+e.length+1>t?(r.push(n),n=e):n=n?n+" "+e:e;n.length>t*1.5;)r.push(n.slice(0,t)),n=n.slice(t);return n&&r.push(n),r}function c(s){return String(s||"").split(/(?:\r?\n)+/).map(t=>t.trim()).filter(Boolean)}export{o as a,c as s};

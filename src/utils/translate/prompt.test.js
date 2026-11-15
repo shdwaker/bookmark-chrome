@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildSystemPrompt, buildUserPrompt } from './prompt'
+import { buildSystemPrompt, buildUserPrompt, buildWordEntryPrompt } from './prompt'
 
 describe('buildSystemPrompt', () => {
   it('includes auto-detect phrasing for auto direction', () => {
@@ -31,5 +31,20 @@ describe('buildSystemPrompt', () => {
 describe('buildUserPrompt', () => {
   it('returns the text as-is', () => {
     expect(buildUserPrompt('hello')).toBe('hello')
+  })
+})
+
+describe('buildWordEntryPrompt', () => {
+  it('includes word and context', () => {
+    const prompt = buildWordEntryPrompt({
+      word: 'ubiquitous',
+      context: 'Cloud computing is ubiquitous.'
+    })
+    expect(prompt).toContain('Word: ubiquitous')
+    expect(prompt).toContain('Context: Cloud computing is ubiquitous.')
+  })
+
+  it('omits context when it duplicates the selected word', () => {
+    expect(buildWordEntryPrompt({ word: 'test', context: 'test' })).toBe('Word: test')
   })
 })

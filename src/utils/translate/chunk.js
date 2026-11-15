@@ -28,4 +28,11 @@ export function splitTextIntoChunks(text, maxSize = CHUNK_SIZE) {
   return chunks
 }
 
+export function splitTextIntoParagraphs(text) {
+  return String(text || '')
+    .split(/(?:\r?\n)+/)
+    .map(paragraph => paragraph.trim())
+    .filter(Boolean)
+}
+
 export { CHUNK_SIZE }

@@ -19,3 +19,11 @@ export function buildSystemPrompt(direction = 'auto') {
 export function buildUserPrompt(text) {
   return text
 }
+
+export function buildWordEntryPrompt({ word, context }) {
+  return [
+    `Word: ${word}`,
+    context && context.trim() !== word ? `Context: ${context.trim().slice(0, 1000)}` : '',
+    ''
+  ].filter(Boolean).join('\n')
+}

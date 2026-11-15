@@ -116,14 +116,39 @@
         </svg>
         AI翻译
       </button>
-      <button class="nav-action-btn" @click="$emit('open-weather')">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="8" cy="14" r="4"/>
-          <path d="M11.5 10.5A5.5 5.5 0 0 1 22 12.5"/>
-          <path d="M9 18h9.5a3.5 3.5 0 0 0 .5-6.96"/>
-        </svg>
-        天气
-      </button>
+      <div class="more-nav" ref="moreNavContainer">
+        <button
+          :class="['nav-action-btn', { active: activeView === 'vocabulary' }]"
+          @click.stop="showMoreMenu = !showMoreMenu"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="1"/>
+            <circle cx="12" cy="5" r="1"/>
+            <circle cx="12" cy="19" r="1"/>
+          </svg>
+          其它
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="6 9 12 15 18 9"/>
+          </svg>
+        </button>
+        <div v-if="showMoreMenu" class="more-menu">
+          <button class="more-menu-item" @click="handleMoreAction('vocabulary')">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M4 19V5a2 2 0 0 1 2-2h13v18H6a2 2 0 0 1-2-2z"/>
+              <path d="M19 17H6a2 2 0 0 0 0 4h13"/>
+            </svg>
+            生词本
+          </button>
+          <button class="more-menu-item" @click="handleMoreAction('weather')">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="8" cy="14" r="4"/>
+              <path d="M11.5 10.5A5.5 5.5 0 0 1 22 12.5"/>
+              <path d="M9 18h9.5a3.5 3.5 0 0 0 .5-6.96"/>
+            </svg>
+            天气
+          </button>
+        </div>
+      </div>
       <button class="nav-action-btn icon-only" @click="$emit('open-settings')" title="设置">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <circle cx="12" cy="12" r="3"/>
@@ -159,7 +184,7 @@ const props = defineProps({
   }
 })
 
-defineEmits(['select-root-folder', 'open-trace', 'open-settings', 'open-all-tabs', 'open-onetab', 'open-translate', 'open-weather'])
+const emit = defineEmits(['select-root-folder', 'open-trace', 'open-settings', 'open-all-tabs', 'open-onetab', 'open-translate', 'open-vocabulary', 'open-weather'])
 
 const bookmarkStore = useBookmarkStore()
 
@@ -169,6 +194,8 @@ const isSearchFocused = ref(false)
 const searchResults = ref([])
 const searchContainer = ref(null)
 const searchInput = ref(null)
+const moreNavContainer = ref(null)
+const showMoreMenu = ref(false)
 
 // 获取所有书签
 function getAllBookmarks(nodes, results = []) {
@@ -261,6 +288,14 @@ function handleClickOutside(event) {
     showResults.value = false
     isSearchFocused.value = false
   }
+  if (moreNavContainer.value && !moreNavContainer.value.contains(event.target)) {
+    showMoreMenu.value = false
+  }
+}
+
+function handleMoreAction(type) {
+  showMoreMenu.value = false
+  emit(type === 'vocabulary' ? 'open-vocabulary' : 'open-weather')
 }
 
 onMounted(() => {
@@ -273,6 +308,42 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+.more-nav {
+  position: relative;
+}
+
+.more-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 132px;
+  padding: 6px;
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
+  z-index: 1000;
+}
+
+.more-menu-item {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #333;
+  cursor: pointer;
+  font-size: 13px;
+  text-align: left;
+}
+
+.more-menu-item:hover {
+  background: #eef4fc;
+  color: #4a90d9;
+}
+
 .search-container {
   position: relative;
   flex: 1;
